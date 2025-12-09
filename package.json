@@ -1,0 +1,22 @@
+{
+  "name": "test-app",
+  "version": "1.0.0",
+  "description": "Сервис для автоматического ввода данных в инпут по координатам",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test-service.js",
+    "install:robotjs": "./install.sh"
+  },
+  "keywords": [
+    "robotjs",
+    "automation",
+    "input"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "robotjs": "^0.6.0"
+  }
+}
