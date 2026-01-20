@@ -1,7 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="" />
+    <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/check-permissions.sh" beforeDir="false" afterPath="$PROJECT_DIR$/check-permissions.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/install.sh" beforeDir="false" afterPath="$PROJECT_DIR$/install.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.bin/semver" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.bin/semver" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/.yarn-integrity" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/.yarn-integrity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/ansi-regex/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/ansi-regex/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/ansi-regex/license" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/ansi-regex/license" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/ansi-regex/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/ansi-regex/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/ansi-regex/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/ansi-regex/readme.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/license" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/license" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/is-fullwidth-code-point/readme.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/node-abi/node_modules/.bin/semver" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/node-abi/node_modules/.bin/semver" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/MMBitmap.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/MMBitmap.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/deadbeef_rand.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/deadbeef_rand.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/keycode.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/keycode.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/keypress.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/keypress.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/mouse.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/mouse.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/robotjs.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/robotjs.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/screen.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/screen.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/screengrab.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/screengrab.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/snprintf.o.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/obj.target/robotjs/src/snprintf.o.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/robotjs.node.d" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/.deps/Release/robotjs.node.d" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/MMBitmap.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/MMBitmap.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/deadbeef_rand.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/deadbeef_rand.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/keycode.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/keycode.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/keypress.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/keypress.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/mouse.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/mouse.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/robotjs.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/robotjs.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/screen.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/screen.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/screengrab.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/screengrab.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/snprintf.o" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/obj.target/robotjs/src/snprintf.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/Release/robotjs.node" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/Release/robotjs.node" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/config.gypi" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/config.gypi" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/robotjs/build/robotjs.target.mk" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/robotjs/build/robotjs.target.mk" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/safe-buffer/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/safe-buffer/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/safe-buffer/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/safe-buffer/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/semver/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/semver/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/semver/bin/semver" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/semver/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/semver/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/semver/semver.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string-width/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/string-width/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string-width/license" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/string-width/license" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string-width/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/string-width/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string-width/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/string-width/readme.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string_decoder/node_modules/safe-buffer/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string_decoder/node_modules/safe-buffer/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string_decoder/node_modules/safe-buffer/index.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string_decoder/node_modules/safe-buffer/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/string_decoder/node_modules/safe-buffer/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/strip-ansi/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/strip-ansi/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/strip-ansi/license" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/strip-ansi/license" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/strip-ansi/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/strip-ansi/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/strip-ansi/readme.md" beforeDir="false" afterPath="$PROJECT_DIR$/node_modules/strip-ansi/readme.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/tunnel-agent/node_modules/safe-buffer/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/tunnel-agent/node_modules/safe-buffer/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/tunnel-agent/node_modules/safe-buffer/index.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/tunnel-agent/node_modules/safe-buffer/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/tunnel-agent/node_modules/safe-buffer/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/ansi-regex/index.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/ansi-regex/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/ansi-regex/license" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/ansi-regex/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/ansi-regex/readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/is-fullwidth-code-point/index.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/is-fullwidth-code-point/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/is-fullwidth-code-point/license" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/is-fullwidth-code-point/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/is-fullwidth-code-point/readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/string-width/index.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/string-width/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/string-width/license" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/string-width/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/string-width/readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/strip-ansi/index.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/strip-ansi/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/strip-ansi/license" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/strip-ansi/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/node_modules/wide-align/node_modules/strip-ansi/readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test-service.js" beforeDir="false" afterPath="$PROJECT_DIR$/test-service.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yarn.lock" beforeDir="false" afterPath="$PROJECT_DIR$/yarn.lock" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -33,7 +120,7 @@
     <property name="node.js.path.for.package.eslint" value="project" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="nodejs_package_manager_path" value="yarn" />
-    <property name="ts.external.directory.path" value="$APPLICATION_HOME_DIR$/plugins/JavaScriptLanguage/jsLanguageServicesImpl/external" />
+    <property name="ts.external.directory.path" value="$PROJECT_DIR$/node_modules/typescript/lib" />
     <property name="vue.rearranger.settings.migration" value="true" />
   </component>
   <component name="RecentsManager">
@@ -61,6 +148,11 @@
       <workItem from="1764507887979" duration="15267000" />
       <workItem from="1764651183861" duration="1178000" />
       <workItem from="1764683880559" duration="38000" />
+      <workItem from="1768566485251" duration="1990000" />
+      <workItem from="1768739098226" duration="576000" />
+      <workItem from="1768801823531" duration="1112000" />
+      <workItem from="1768829934368" duration="5624000" />
+      <workItem from="1768891420932" duration="503000" />
     </task>
     <servers />
   </component>
