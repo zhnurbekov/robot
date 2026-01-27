@@ -10,7 +10,6 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-import number = CSS.number;
 
 @Injectable()
 export class ApplicationService {

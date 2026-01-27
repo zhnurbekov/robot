@@ -8,11 +8,11 @@ import {HtmlParserService} from './html-parser.service';
 import {CryptoSocketService} from '../ncanode/crypto-socket.service';
 import {NcanodeService} from '../ncanode/ncanode.service';
 import {NclayerService} from '../ncanode/nclayer.service';
-import {InputService} from '../input/input.service';
 import {ConfigService} from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as cheerio from 'cheerio';
+import axios from 'axios';
 
 /**
  * Сервис для обработки данных портала
@@ -31,7 +31,6 @@ export class PortalProcessorService implements IPortalProcessor {
 		private cryptoSocketService: CryptoSocketService,
 		private ncanodeService: NcanodeService,
 		private nclayerService: NclayerService,
-		private inputService: InputService,
 		private configService: ConfigService,
 		private authService: AuthService,
 	) {
@@ -2204,46 +2203,38 @@ export class PortalProcessorService implements IPortalProcessor {
 	
 	/**
 	 * Ввод данных в модальное окно после успешного шифрования цены
-	 * Кликает по координатам, очищает инпут и вводит цену
+	 * Отправляет запрос на внешний сервис для заполнения инпута и клика по кнопке
 	 */
 	async setData(minPrice: number): Promise<void> {
-		
-		// setTimeout(() => {
-		// 	const pos = this.inputService.getMousePosition();
-		// 	console.log(`Используйте эти координаты: x=${pos.x}, y=${pos.y}`);
-		// }, 3000);
-		
 		const taskId = 'setData';
 		this.logger.log(`[${taskId}] Начало ввода данных в модальное окно...`);
 		
 		try {
-			const x = 790;
-			const y = 322;
-			const price = minPrice;
+			const inputX = parseInt(this.configService.get<string>('INPUT_X', '790'), 10);
+			const inputY = parseInt(this.configService.get<string>('INPUT_Y', '322'), 10);
+			const buttonX = parseInt(this.configService.get<string>('BUTTON_X', '828'), 10);
+			const buttonY = parseInt(this.configService.get<string>('BUTTON_Y', '432'), 10);
+			const robotogoUrl = this.configService.get<string>('ROBOTOGO_URL', 'http://localhost:3001/api/robotogo/fill-and-click');
 			
-			const okButtonX = 828
-			const okButtonY = 432
+			const requestBody = {
+				input_x: inputX,
+				input_y: inputY,
+				text: String(minPrice),
+				button_x: buttonX,
+				button_y: buttonY,
+				button: 'left'
+			};
 			
-			await new Promise(resolve => setTimeout(resolve, 200));
+			this.logger.log(`[${taskId}] Отправка запроса на ${robotogoUrl} с данными:`, requestBody);
 			
-			// Плавно перемещаем мышь и кликаем
-			await this.inputService.clickAt(x, y, 200, true);
+			const response = await axios.post(robotogoUrl, requestBody, {
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				timeout: 10000
+			});
 			
-			// Ждем немного
-			await new Promise(resolve => setTimeout(resolve, 200));
-			
-			// Очищаем инпут
-			this.inputService.clearInput();
-			
-			// Ждем еще немного
-			await new Promise(resolve => setTimeout(resolve, 100));
-			
-			// Вводим текст
-			await this.inputService.typeText(price, 50);
-			await this.inputService.clickAt(okButtonX, okButtonY, 200, true);
-			
-			
-			this.logger.log(`[${taskId}] Данные успешно введены в модальное окно`);
+			this.logger.log(`[${taskId}] Данные успешно введены в модальное окно. Ответ сервера:`, response.status);
 		} catch (error) {
 			this.logger.error(`[${taskId}] Ошибка при вводе данных: ${(error as Error).message}`);
 			throw error;

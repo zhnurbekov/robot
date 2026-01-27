@@ -6,11 +6,10 @@ import {AppendixService} from './appendix.service';
 import {PortalModule} from '../portal/portal.module';
 import {HttpModule} from '../http/http.module';
 import {NcanodeModule} from '../ncanode/ncanode.module';
-import {InputModule} from '../input/input.module';
 import {AuthModule} from '../auth/auth.module';
 
 @Module({
-	imports: [PortalModule, HttpModule, NcanodeModule, InputModule, AuthModule, forwardRef(() => ApplicationModule)],
+	imports: [PortalModule, HttpModule, NcanodeModule, AuthModule, forwardRef(() => ApplicationModule)],
 	providers: [PortalProcessorService, HtmlParserService, AppendixService],
 	exports: [PortalProcessorService, HtmlParserService, AppendixService],
 })
