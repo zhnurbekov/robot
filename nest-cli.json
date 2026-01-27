@@ -5,7 +5,7 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "watchAssets": true,
-    "assets": ["**/*.json", "**/*.env"]
+    "assets": ["**/*.json", "**/*.env", "**/*.js"]
   },
   "watchOptions": {
     "watch": ["src"],
