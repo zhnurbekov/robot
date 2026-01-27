@@ -2,11 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/input/input.module.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/input/input.service.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/application/application.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/application/application.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/appendix.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/appendix.service.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.module.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" afterDir="false" />
     </list>

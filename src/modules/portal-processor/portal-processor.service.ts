@@ -9,6 +9,7 @@ import {CryptoSocketService} from '../ncanode/crypto-socket.service';
 import {NcanodeService} from '../ncanode/ncanode.service';
 import {NclayerService} from '../ncanode/nclayer.service';
 import {ConfigService} from '@nestjs/config';
+import { Buffer } from 'buffer';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as cheerio from 'cheerio';
@@ -577,8 +578,6 @@ export class PortalProcessorService implements IPortalProcessor {
 		
 		const taskId = `appendixSecondHandle-${docId}`;
 		const docUrl = `/ru/application/show_doc/${announceId}/${applicationId}/${docId}`;
-		let downloadedFilePath: string | null = null;
-		let signedFilePath: string | null = null;
 		
 		try {
 			// Шаг 1: Отправить GET запрос для получения HTML с data-url и fileIdentifier
@@ -734,29 +733,30 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			// Шаг 3: Скачать файл
 			this.logger.log(`[${taskId}] Скачивание файла ${signatureData.dataUrl}...`);
-			downloadedFilePath = await this.appendixService.downloadFile(signatureData.dataUrl, taskId);
-			this.logger.log(`[${taskId}] Файл скачан: ${downloadedFilePath}`);
+			const { fileBuffer, ext } = await this.appendixService.downloadFile(signatureData.dataUrl, taskId);
+			this.logger.log(`[${taskId}] Файл скачан в память (${fileBuffer.length} байт)`);
 			
 			// Шаг 4: Подписать файл
 			this.logger.log(`[${taskId}] Подписание файла...`);
-			signedFilePath = await this.appendixService.signFile(downloadedFilePath, taskId);
-			this.logger.log(`[${taskId}] Файл подписан: ${signedFilePath}`);
+			const signedDocument = await this.appendixService.signFile(fileBuffer, ext, taskId, signatureData.dataUrl);
+			this.logger.log(`[${taskId}] Файл подписан`);
 			
 			// Шаг 5: Извлечь подпись из подписанного файла
-			const signedFileBuffer = await fs.readFile(signedFilePath);
-			const ext = path.extname(signedFilePath).toLowerCase();
-			
 			let signature: string;
 			if (ext === '.xml') {
-				const xmlContent = signedFileBuffer.toString('utf-8');
+				const xmlContent = typeof signedDocument === 'string' ? signedDocument : signedDocument.toString('utf-8');
 				const signatureMatch = xmlContent.match(/<[^:]*:?SignatureValue[^>]*>([^<]+)<\/[^:]*:?SignatureValue>/i);
 				if (signatureMatch && signatureMatch[1]) {
 					signature = signatureMatch[1].trim();
 				} else {
-					signature = signedFileBuffer.toString('base64');
+					signature = typeof signedDocument === 'string' 
+						? Buffer.from(xmlContent, 'utf-8').toString('base64')
+						: signedDocument.toString('base64');
 				}
 			} else {
-				signature = signedFileBuffer.toString('base64');
+				signature = typeof signedDocument === 'string'
+					? Buffer.from(signedDocument, 'utf-8').toString('base64')
+					: signedDocument.toString('base64');
 			}
 			
 			this.logger.log(`[${taskId}] Подпись извлечена, длина: ${signature.length}`);
@@ -783,9 +783,6 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			this.logger.log(`[${taskId}] POST запрос отправлен. Статус: ${postResponse.status}`);
 			
-			// Очистка временных файлов
-			await this.appendixService.cleanupFiles([downloadedFilePath, signedFilePath]);
-			
 			return {
 				success: postResponse.success,
 				status: postResponse.status,
@@ -794,14 +791,6 @@ export class PortalProcessorService implements IPortalProcessor {
 				response: postResponse.data,
 			};
 		} catch (error) {
-			// Очистка временных файлов при ошибке
-			if (downloadedFilePath) {
-				await this.appendixService.cleanupFiles([downloadedFilePath]);
-			}
-			if (signedFilePath) {
-				await this.appendixService.cleanupFiles([signedFilePath]);
-			}
-			
 			this.logger.error(`[${taskId}] Ошибка обработки второго приложения: ${(error as Error).message}`);
 			throw error;
 		}
@@ -946,29 +935,30 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			// Шаг 4: Скачать файл
 			this.logger.log(`[${taskId}] Скачивание файла ${fileDataUrl}...`);
-			const downloadedFilePath = await this.appendixService.downloadFile(fileDataUrl, taskId);
-			this.logger.log(`[${taskId}] Файл скачан: ${downloadedFilePath}`);
+			const { fileBuffer, ext } = await this.appendixService.downloadFile(fileDataUrl, taskId);
+			this.logger.log(`[${taskId}] Файл скачан в память (${fileBuffer.length} байт)`);
 			
 			// Шаг 5: Подписать файл
 			this.logger.log(`[${taskId}] Подписание файла...`);
-			const signedFilePath = await this.appendixService.signFile(downloadedFilePath, taskId);
-			this.logger.log(`[${taskId}] Файл подписан: ${signedFilePath}`);
+			const signedDocument = await this.appendixService.signFile(fileBuffer, ext, taskId, fileDataUrl);
+			this.logger.log(`[${taskId}] Файл подписан`);
 			
 			// Шаг 6: Извлечь подпись из подписанного файла
-			const signedFileBuffer = await fs.readFile(signedFilePath);
-			const ext = path.extname(signedFilePath).toLowerCase();
-			
 			let signature: string;
 			if (ext === '.xml') {
-				const xmlContent = signedFileBuffer.toString('utf-8');
+				const xmlContent = typeof signedDocument === 'string' ? signedDocument : signedDocument.toString('utf-8');
 				const signatureMatch = xmlContent.match(/<[^:]*:?SignatureValue[^>]*>([^<]+)<\/[^:]*:?SignatureValue>/i);
 				if (signatureMatch && signatureMatch[1]) {
 					signature = signatureMatch[1].trim();
 				} else {
-					signature = signedFileBuffer.toString('base64');
+					signature = typeof signedDocument === 'string' 
+						? Buffer.from(xmlContent, 'utf-8').toString('base64')
+						: signedDocument.toString('base64');
 				}
 			} else {
-				signature = signedFileBuffer.toString('base64');
+				signature = typeof signedDocument === 'string'
+					? Buffer.from(signedDocument, 'utf-8').toString('base64')
+					: signedDocument.toString('base64');
 			}
 			
 			this.logger.log(`[${taskId}] Подпись извлечена, длина: ${signature.length}`);
@@ -994,9 +984,6 @@ export class PortalProcessorService implements IPortalProcessor {
 			});
 			
 			this.logger.log(`[${taskId}] POST запрос с подписью отправлен. Статус: ${signResponse.status} ${JSON.stringify(signResponse)}`);
-			
-			// Очистка временных файлов
-			await this.appendixService.cleanupFiles([downloadedFilePath, signedFilePath]);
 			
 			return {
 				...response,
@@ -1281,8 +1268,6 @@ export class PortalProcessorService implements IPortalProcessor {
 		this.logger.log(`Обработка листа данных для документа ${docId} заявки ${applicationId}...`);
 		
 		const taskId = `dataSheet-${docId}`;
-		const downloadedFiles: string[] = [];
-		const signedFiles: string[] = [];
 		
 		try {
 			// Шаг 1: Отправить GET запрос на show_doc для получения всех ссылок
@@ -1369,35 +1354,32 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			for (const fileData of allFileData) {
 				const fileTaskId = `${taskId}-${fileData.fileIdentifier}`;
-				let downloadedFilePath: string | null = null;
-				let signedFilePath: string | null = null;
 				
 				try {
 					this.logger.log(`[${fileTaskId}] Скачивание файла ${fileData.dataUrl}...`);
-					downloadedFilePath = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId);
-					downloadedFiles.push(downloadedFilePath);
-					this.logger.log(`[${fileTaskId}] Файл скачан: ${downloadedFilePath}`);
+					const { fileBuffer, ext } = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId);
+					this.logger.log(`[${fileTaskId}] Файл скачан в память (${fileBuffer.length} байт)`);
 					
 					this.logger.log(`[${fileTaskId}] Подписание файла...`);
-					signedFilePath = await this.appendixService.signFile(downloadedFilePath, fileTaskId);
-					signedFiles.push(signedFilePath);
-					this.logger.log(`[${fileTaskId}] Файл подписан: ${signedFilePath}`);
+					const signedDocument = await this.appendixService.signFile(fileBuffer, ext, fileTaskId, fileData.dataUrl);
+					this.logger.log(`[${fileTaskId}] Файл подписан`);
 					
 					// Извлечь подпись из подписанного файла
-					const signedFileBuffer = await fs.readFile(signedFilePath);
-					const ext = path.extname(signedFilePath).toLowerCase();
-					
 					let signature: string;
 					if (ext === '.xml') {
-						const xmlContent = signedFileBuffer.toString('utf-8');
+						const xmlContent = typeof signedDocument === 'string' ? signedDocument : signedDocument.toString('utf-8');
 						const signatureMatch = xmlContent.match(/<[^:]*:?SignatureValue[^>]*>([^<]+)<\/[^:]*:?SignatureValue>/i);
 						if (signatureMatch && signatureMatch[1]) {
 							signature = signatureMatch[1].trim();
 						} else {
-							signature = signedFileBuffer.toString('base64');
+							signature = typeof signedDocument === 'string' 
+								? Buffer.from(xmlContent, 'utf-8').toString('base64')
+								: signedDocument.toString('base64');
 						}
 					} else {
-						signature = signedFileBuffer.toString('base64');
+						signature = typeof signedDocument === 'string'
+							? Buffer.from(signedDocument, 'utf-8').toString('base64')
+							: signedDocument.toString('base64');
 					}
 					
 					// Группируем по viewHref
@@ -1412,12 +1394,6 @@ export class PortalProcessorService implements IPortalProcessor {
 					this.logger.log(`[${fileTaskId}] Подпись извлечена, длина: ${signature.length}`);
 				} catch (error) {
 					this.logger.error(`[${fileTaskId}] Ошибка при обработке файла: ${(error as Error).message}`);
-					if (downloadedFilePath) {
-						await this.appendixService.cleanupFiles([downloadedFilePath]);
-					}
-					if (signedFilePath) {
-						await this.appendixService.cleanupFiles([signedFilePath]);
-					}
 					throw error;
 				}
 			}
@@ -1459,9 +1435,6 @@ export class PortalProcessorService implements IPortalProcessor {
 				this.logger.log(`[${taskId}] POST запрос отправлен на ${viewHref}. Статус: ${saveResponse.status}, подписей: ${fileSignatures.length}`);
 			}
 			
-			// Очистка временных файлов
-			await this.appendixService.cleanupFiles([...downloadedFiles, ...signedFiles]);
-			
 			const allSuccess = saveResponses.every(r => r.success);
 			
 			return {
@@ -1471,10 +1444,6 @@ export class PortalProcessorService implements IPortalProcessor {
 				responses: saveResponses,
 			};
 		} catch (error) {
-			// Очистка временных файлов при ошибке
-			if (downloadedFiles.length > 0 || signedFiles.length > 0) {
-				await this.appendixService.cleanupFiles([...downloadedFiles, ...signedFiles]);
-			}
 			this.logger.error(`[${taskId}] Ошибка при обработке листа данных: ${(error as Error).message}`);
 			throw error;
 		}
@@ -2338,8 +2307,6 @@ export class PortalProcessorService implements IPortalProcessor {
 		
 		const taskId = `dataSheetHandle-${docId}-${lotId}-${index}`;
 		const docUrl = `/ru/application/show_doc/${announceId}/${applicationId}/${docId}/${lotId}/${index}`;
-		const downloadedFiles: string[] = [];
-		const signedFiles: string[] = [];
 		
 		try {
 			// Шаг 1: Отправить GET запрос для получения HTML с data-url и fileIdentifier
@@ -2603,35 +2570,32 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			for (const fileData of allFileData) {
 				const fileTaskId = `${taskId}-${fileData.fileIdentifier}`;
-				let downloadedFilePath: string | null = null;
-				let signedFilePath: string | null = null;
 				
 				try {
 					this.logger.log(`[${fileTaskId}] Скачивание файла ${fileData.dataUrl}...`);
-					downloadedFilePath = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId);
-					downloadedFiles.push(downloadedFilePath);
-					this.logger.log(`[${fileTaskId}] Файл скачан: ${downloadedFilePath}`);
+					const { fileBuffer, ext } = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId);
+					this.logger.log(`[${fileTaskId}] Файл скачан в память (${fileBuffer.length} байт)`);
 					
 					this.logger.log(`[${fileTaskId}] Подписание файла...`);
-					signedFilePath = await this.appendixService.signFile(downloadedFilePath, fileTaskId);
-					signedFiles.push(signedFilePath);
-					this.logger.log(`[${fileTaskId}] Файл подписан: ${signedFilePath}`);
+					const signedDocument = await this.appendixService.signFile(fileBuffer, ext, fileTaskId, fileData.dataUrl);
+					this.logger.log(`[${fileTaskId}] Файл подписан`);
 					
 					// Извлечь подпись из подписанного файла
-					const signedFileBuffer = await fs.readFile(signedFilePath);
-					const ext = path.extname(signedFilePath).toLowerCase();
-					
 					let signature: string;
 					if (ext === '.xml') {
-						const xmlContent = signedFileBuffer.toString('utf-8');
+						const xmlContent = typeof signedDocument === 'string' ? signedDocument : signedDocument.toString('utf-8');
 						const signatureMatch = xmlContent.match(/<[^:]*:?SignatureValue[^>]*>([^<]+)<\/[^:]*:?SignatureValue>/i);
 						if (signatureMatch && signatureMatch[1]) {
 							signature = signatureMatch[1].trim();
 						} else {
-							signature = signedFileBuffer.toString('base64');
+							signature = typeof signedDocument === 'string' 
+								? Buffer.from(xmlContent, 'utf-8').toString('base64')
+								: signedDocument.toString('base64');
 						}
 					} else {
-						signature = signedFileBuffer.toString('base64');
+						signature = typeof signedDocument === 'string'
+							? Buffer.from(signedDocument, 'utf-8').toString('base64')
+							: signedDocument.toString('base64');
 					}
 					
 					fileSignatures.push({
@@ -2642,12 +2606,6 @@ export class PortalProcessorService implements IPortalProcessor {
 					this.logger.log(`[${fileTaskId}] Подпись извлечена, длина: ${signature.length}`);
 				} catch (error) {
 					this.logger.error(`[${fileTaskId}] Ошибка при обработке файла: ${(error as Error).message}`);
-					if (downloadedFilePath) {
-						await this.appendixService.cleanupFiles([downloadedFilePath]);
-					}
-					if (signedFilePath) {
-						await this.appendixService.cleanupFiles([signedFilePath]);
-					}
 					throw error;
 				}
 			}
@@ -2691,9 +2649,6 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			this.logger.log(`[${taskId}] POST запрос отправлен.dataSheetHandle  Статус: ${postResponse.status}, подписей: ${fileSignatures.length} }`);
 			
-			// Очистка временных файлов
-			await this.appendixService.cleanupFiles([...downloadedFiles, ...signedFiles]);
-			
 			return {
 				success: postResponse.success,
 				status: postResponse.status,
@@ -2702,9 +2657,6 @@ export class PortalProcessorService implements IPortalProcessor {
 				response: postResponse.data,
 			};
 		} catch (error) {
-			// Очистка временных файлов при ошибке
-			await this.appendixService.cleanupFiles([...downloadedFiles, ...signedFiles]);
-			
 			this.logger.error(`[${taskId}] Ошибка обработки листа данных: ${(error as Error).message}`);
 			throw error;
 		}

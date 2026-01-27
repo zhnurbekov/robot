@@ -75,6 +75,10 @@ export class ApplicationService {
 			// Проверяем авторизацию только если нужно
 			await this.authService.login();
 			
+			
+			// await this.portalProcessorService.dataSheetHandle('16040144', '68693909', '3357', '80876413', '2');
+			//
+			// return
 			// Создаем объявление
 			const announcement = await this.portalProcessorService.processAnnouncementCreate(announcementsId);
 			
@@ -172,7 +176,7 @@ export class ApplicationService {
 			
 			// Шаг 3: Подписать файл в памяти через ncanode (с кэшированием в Redis)
 			this.logger.log(`[${taskId}] Шаг 3: Подписание файла через ncanode...`);
-			const signedDocument = await this.signFileInMemory(fileBuffer, ext, taskId);
+			const signedDocument = await this.signFileInMemory(fileBuffer, ext, taskId, fileUrl);
 			this.logger.log(`[${taskId}] Файл подписан в памяти`);
 			
 			const duration = Date.now() - startTime;
@@ -341,12 +345,57 @@ export class ApplicationService {
 			const fileBuffer = Buffer.from(response.data);
 			
 			// Определяем расширение файла
-			const contentType = response.headers['content-type'] || '';
+			// Сначала проверяем расширение из URL
 			let ext = '.tmp';
-			if (contentType.includes('pdf')) ext = '.pdf';
-			else if (contentType.includes('xml')) ext = '.xml';
-			else if (contentType.includes('doc')) ext = '.doc';
-			else if (contentType.includes('zip')) ext = '.zip';
+			const urlLower = fileUrl.toLowerCase();
+			if (urlLower.includes('.pdf')) ext = '.pdf';
+			else if (urlLower.includes('.docx')) ext = '.docx';
+			else if (urlLower.includes('.doc')) ext = '.doc';
+			else if (urlLower.includes('.xml')) ext = '.xml';
+			else if (urlLower.includes('.zip')) ext = '.zip';
+			else {
+				// Если не нашли в URL, проверяем content-type
+				const contentType = response.headers['content-type'] || '';
+				if (contentType.includes('pdf')) ext = '.pdf';
+				else if (contentType.includes('docx') || contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) ext = '.docx';
+				else if (contentType.includes('doc') || contentType.includes('application/msword')) ext = '.doc';
+				else if (contentType.includes('xml') && (contentType.includes('text/xml') || contentType.includes('application/xml'))) ext = '.xml';
+				else if (contentType.includes('zip')) ext = '.zip';
+				else {
+					// Проверяем magic bytes для более точного определения
+					// PDF: %PDF
+					if (fileBuffer.length >= 4 && fileBuffer[0] === 0x25 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x44 && fileBuffer[3] === 0x46) {
+						ext = '.pdf';
+					}
+					// ZIP/DOCX: PK (ZIP signature)
+					else if (fileBuffer.length >= 2 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4B) {
+						// Проверяем, это docx или обычный zip
+						const bufferStr = fileBuffer.toString('utf-8', 0, Math.min(1000, fileBuffer.length));
+						if (bufferStr.includes('word/') || bufferStr.includes('[Content_Types].xml')) {
+							ext = '.docx';
+						} else {
+							ext = '.zip';
+						}
+					}
+					// XML: начинается с <?xml или <root
+					else if (fileBuffer.length >= 5) {
+						const startStr = fileBuffer.toString('utf-8', 0, Math.min(100, fileBuffer.length)).trim();
+						if (startStr.startsWith('<?xml') || startStr.startsWith('<root') || startStr.startsWith('<')) {
+							// Проверяем, что это действительно XML (нет недопустимых символов)
+							try {
+								const testStr = fileBuffer.toString('utf-8');
+								// Проверяем на наличие недопустимых XML символов (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F кроме 0x09, 0x0A, 0x0D)
+								const invalidXmlChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F]/;
+								if (!invalidXmlChars.test(testStr)) {
+									ext = '.xml';
+								}
+							} catch (e) {
+								// Если не удалось преобразовать в строку, это не XML
+							}
+						}
+					}
+				}
+			}
 			
 			const fileName = `${taskId}-${Date.now()}${ext}`;
 			
@@ -373,11 +422,13 @@ export class ApplicationService {
 	/**
 	 * Подписать файл в памяти (Buffer) с кэшированием в Redis
 	 * Использует Redis для кэширования подписанных файлов
+	 * @param fileUrl - опциональный URL файла для удаления оригинального файла из кэша после подписания
 	 */
 	private async signFileInMemory(
 		fileBuffer: Buffer,
 		ext: string,
 		taskId: string,
+		fileUrl?: string,
 	): Promise<Buffer | string> {
 		try {
 			// Создаем хэш файла для кэширования подписанной версии
@@ -407,12 +458,29 @@ export class ApplicationService {
 			
 			let signedData: any;
 			
+			// Проверяем, что файл действительно XML перед подписанием как XML
+			// docx файлы могут иметь content-type xml, но это бинарные файлы
 			if (ext === '.xml') {
-				// Для XML используем signWithNclayer
-				const xmlContent = fileBuffer.toString('utf-8');
-				signedData = await this.ncanodeService.signWithNclayer(xmlContent, certPath, certPassword);
+				// Дополнительная проверка: пытаемся преобразовать в строку и проверить на валидность XML
+				try {
+					const xmlContent = fileBuffer.toString('utf-8');
+					// Проверяем на наличие недопустимых XML символов
+					const invalidXmlChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F]/;
+					if (invalidXmlChars.test(xmlContent)) {
+						// Файл содержит недопустимые символы для XML, подписываем как бинарный
+						this.logger.warn(`[${taskId}] Файл имеет расширение .xml, но содержит недопустимые XML символы. Подписываем как бинарный файл.`);
+						signedData = await this.ncanodeService.sign(fileBuffer, certPath, certPassword, true);
+					} else {
+						// Это валидный XML файл
+						signedData = await this.ncanodeService.signWithNclayer(xmlContent, certPath, certPassword);
+					}
+				} catch (error) {
+					// Если не удалось преобразовать в строку, подписываем как бинарный
+					this.logger.warn(`[${taskId}] Не удалось обработать файл как XML: ${(error as Error).message}. Подписываем как бинарный файл.`);
+					signedData = await this.ncanodeService.sign(fileBuffer, certPath, certPassword, true);
+				}
 			} else {
-				// Для других файлов используем обычную подпись
+				// Все остальные файлы (pdf, doc, docx, zip и т.д.) подписываем как бинарные
 				signedData = await this.ncanodeService.sign(fileBuffer, certPath, certPassword, true);
 			}
 			
@@ -451,6 +519,18 @@ export class ApplicationService {
 					this.logger.debug(`[${taskId}] Подписанный файл сохранен в кэш Redis (${signedSize} байт)`);
 				} else {
 					this.logger.debug(`[${taskId}] Подписанный файл слишком большой для кэширования: ${signedSize} байт`);
+				}
+			}
+			
+			// Удаляем оригинальный файл из кэша Redis после успешного подписания
+			if (this.enableFileCache && fileUrl) {
+				try {
+					const urlHash = crypto.createHash('sha256').update(fileUrl).digest('hex');
+					const originalFileCacheKey = `${this.fileCacheKeyPrefix}${urlHash}`;
+					await this.redisService.delete(originalFileCacheKey);
+					this.logger.debug(`[${taskId}] Оригинальный файл удален из кэша Redis: ${fileUrl}`);
+				} catch (error) {
+					this.logger.warn(`[${taskId}] Не удалось удалить оригинальный файл из кэша: ${(error as Error).message}`);
 				}
 			}
 			
