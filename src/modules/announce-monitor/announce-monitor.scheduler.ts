@@ -7,6 +7,7 @@ import { AnnounceMonitorService } from './announce-monitor.service';
 export class AnnounceMonitorScheduler implements OnModuleInit {
   private readonly logger = new Logger(AnnounceMonitorScheduler.name);
   private isEnabled: boolean = true;
+  private isRunning: boolean = false; // Флаг для предотвращения параллельного выполнения
 
   constructor(
     private announceMonitorService: AnnounceMonitorService,
@@ -20,9 +21,9 @@ export class AnnounceMonitorScheduler implements OnModuleInit {
 
     if (enabled) {
       this.logger.log(`AnnounceMonitorScheduler инициализирован`);
-      this.logger.log(`Мониторинг избранных объявлений: каждые 30 секунд`);
+      this.logger.log(`Мониторинг избранных объявлений: каждую секунду`);
       console.log(`[AnnounceMonitorScheduler] Инициализирован для мониторинга избранных объявлений`);
-      console.log(`[AnnounceMonitorScheduler] Проверка статусов каждые 30 секунд`);
+      console.log(`[AnnounceMonitorScheduler] Проверка статусов каждую секунду`);
     } else {
       this.logger.log('AnnounceMonitorScheduler отключен (ANNOUNCE_MONITOR_ENABLED=false)');
     }
@@ -30,21 +31,37 @@ export class AnnounceMonitorScheduler implements OnModuleInit {
 
   /**
    * Мониторинг статусов избранных объявлений
-   * Проверяет статусы каждые 30 секунд и вызывает API start для объявлений со статусом "Опубликовано (прием заявок)"
+   * Проверяет статусы каждую секунду и вызывает API start для объявлений со статусом "Опубликовано (прием заявок)"
    */
-  @Interval(1000) // 30000 мс = 30 секунд
+  @Interval(1000) // 1000 мс = 1 секунда
   async handleInterval() {
     if (!this.isEnabled) {
       return;
     }
 
+    // Предотвращаем параллельное выполнение, если предыдущая задача еще не завершилась
+    if (this.isRunning) {
+      this.logger.debug('Предыдущая задача мониторинга еще выполняется, пропускаем этот запуск');
+      return;
+    }
+
+    this.isRunning = true;
+    const startTime = Date.now();
+    const timestamp = new Date().toISOString();
+
     try {
+      this.logger.debug(`[${timestamp}] Запуск задачи мониторинга избранных объявлений`);
       await this.announceMonitorService.monitorFavoritesStatus();
+      const duration = Date.now() - startTime;
+      this.logger.debug(`Задача мониторинга выполнена за ${duration} мс`);
     } catch (error) {
-      this.logger.error(`Ошибка в задаче мониторинга избранных объявлений: ${error.message}`);
+      const duration = Date.now() - startTime;
+      this.logger.error(`Ошибка в задаче мониторинга избранных объявлений (выполнялась ${duration} мс): ${error.message}`);
       if (error.stack) {
         this.logger.debug(error.stack);
       }
+    } finally {
+      this.isRunning = false;
     }
   }
 
