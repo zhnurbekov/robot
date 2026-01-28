@@ -2,258 +2,334 @@ import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '../http/http.service';
 import { AuthService } from '../auth/auth.service';
+import { PortalService } from '../portal/portal.service';
+import { ApplicationService } from '../application/application.service';
 import * as cheerio from 'cheerio';
+import axios from 'axios';
+
+export interface FavoriteAnnouncement {
+  number: string; // Номер объявления (например, "15880798-1")
+  organizer: string; // Организатор
+  titleRu: string; // Название объявления на русском
+  titleKz: string; // Название объявления на казахском
+  procurementMethod: string; // Способ закупки
+  procurementType: string; // Вид предмета закупки
+  startDate: string; // Дата начала приема заявок
+  endDate: string; // Дата окончания приема заявок
+  lotsCount: string; // Количество лотов
+  totalAmount: string; // Сумма объявления
+  status: string; // Статус
+  announceId: string; // ID объявления (извлекается из number или ссылки)
+  url: string; // URL объявления
+}
 
 @Injectable()
 export class AnnounceMonitorService {
   private readonly logger = new Logger(AnnounceMonitorService.name);
-  private readonly announceId: string;
-  private readonly baseUrl: string;
+
+  private readonly mainAppUrl: string;
+  private processedAnnouncements: Set<string> = new Set(); // Храним ID объявлений, которые уже обработаны
 
   constructor(
     private httpService: HttpService,
     private configService: ConfigService,
     @Inject(forwardRef(() => AuthService))
     private authService: AuthService,
+    private portalService: PortalService,
+    @Inject(forwardRef(() => ApplicationService))
+    private applicationService: ApplicationService,
   ) {
-    this.announceId = this.configService.get<string>('ANNOUNCE_MONITOR_ID', '15850002');
-    this.baseUrl = this.configService.get<string>('PORTAL_BASE_URL', 'https://v3bl.goszakup.gov.kz');
+    // URL основного приложения для вызова API start
+    const mainAppPort = this.configService.get<number>('PORT', 3000);
+    this.mainAppUrl = `http://localhost:${mainAppPort}/api/applications/start`;
+  }
+
+  /**
+   * Получить список избранных объявлений с портала
+   * @returns Массив объектов с данными объявлений из таблицы избранного
+   */
+  async getFavorites(): Promise<FavoriteAnnouncement[]> {
+    const taskId = 'getFavorites';
+    this.logger.log(`[${taskId}] Получение списка избранных объявлений...`);
+
+    try {
+      // Проверяем авторизацию
+      await this.authService.login();
+
+      // Отправляем запрос на страницу избранного
+      const response = await this.portalService.request({
+        url: '/ru/favorites',
+        method: 'GET',
+        additionalHeaders: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      if (!response.success || !response.data || typeof response.data !== 'string') {
+        throw new Error('Не удалось получить HTML страницы избранного');
+      }
+
+      const html = response.data as string;
+      const favorites = this.parseFavoritesTable(html);
+
+      this.logger.log(`[${taskId}] Получено избранных объявлений: ${favorites.length}`);
+      return favorites;
+    } catch (error) {
+      this.logger.error(`[${taskId}] Ошибка при получении избранных объявлений: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Парсинг таблицы избранных объявлений из HTML
+   * @param html - HTML содержимое страницы
+   * @returns Массив объектов с данными объявлений
+   */
+  private parseFavoritesTable(html: string): FavoriteAnnouncement[] {
+    const $ = cheerio.load(html);
+    const favorites: FavoriteAnnouncement[] = [];
+
+    // Находим таблицу с классом table-bordered
+    const table = $('table.table-bordered');
     
-    // Устанавливаем callback для автоматической переавторизации при обнаружении истечения сессии
-    this.httpService.setOnReauthRequiredCallback(async () => {
-      this.logger.warn('🔄 Требуется переавторизация (обнаружено истечение сессии)');
+    if (table.length === 0) {
+      this.logger.warn('Таблица избранного не найдена на странице');
+      return favorites;
+    }
+
+    // Пропускаем заголовок (первая строка <tr> с <th>)
+    const rows = table.find('tr').filter((index, element) => {
+      return $(element).find('th').length === 0; // Пропускаем строки с заголовками
+    });
+
+    rows.each((index, element) => {
+      const $row = $(element);
+      const cells = $row.find('td');
+
+      if (cells.length < 10) {
+        this.logger.warn(`Строка ${index + 1} содержит недостаточно ячеек (${cells.length} вместо 10)`);
+        return;
+      }
+
       try {
-        const success = await this.authService.login(true); // force=true для принудительной авторизации
-        if (success) {
-          this.logger.log('✅ Переавторизация выполнена успешно');
+        // Извлекаем номер объявления
+        const number = $(cells[0]).text().trim();
+        
+        // Извлекаем ID объявления из номера (например, "15880798-1" -> "15880798")
+        const announceId = number.split('-')[0];
+
+        // Организатор
+        const organizer = $(cells[1]).text().trim();
+
+        // Название объявления (может содержать русский и казахский текст)
+        const nameCell = $(cells[2]);
+        const titleLink = nameCell.find('a');
+        const titleDivs = titleLink.find('div');
+        
+        let titleRu = '';
+        let titleKz = '';
+        if (titleDivs.length >= 2) {
+          titleRu = $(titleDivs[0]).text().trim();
+          titleKz = $(titleDivs[1]).text().trim();
+        } else if (titleDivs.length === 1) {
+          titleRu = $(titleDivs[0]).text().trim();
         } else {
-          this.logger.error('❌ Переавторизация не удалась');
+          titleRu = titleLink.text().trim();
         }
-        return success;
+
+        // URL объявления
+        const url = titleLink.attr('href') || '';
+
+        // Способ закупки
+        const procurementMethod = $(cells[3]).text().trim();
+
+        // Вид предмета закупки
+        const procurementType = $(cells[4]).text().trim();
+
+        // Дата начала приема заявок
+        const startDate = $(cells[5]).text().trim();
+
+        // Дата окончания приема заявок
+        const endDate = $(cells[6]).text().trim();
+
+        // Количество лотов
+        const lotsCount = $(cells[7]).text().trim();
+
+        // Сумма объявления
+        const totalAmount = $(cells[8]).text().trim();
+
+        // Статус
+        const status = $(cells[9]).text().trim();
+
+        favorites.push({
+          number,
+          organizer,
+          titleRu,
+          titleKz,
+          procurementMethod,
+          procurementType,
+          startDate,
+          endDate,
+          lotsCount,
+          totalAmount,
+          status,
+          announceId,
+          url,
+        });
       } catch (error) {
-        this.logger.error(`❌ Ошибка при переавторизации: ${(error as Error).message}`);
-        return false;
+        this.logger.error(`Ошибка при парсинге строки ${index + 1}: ${(error as Error).message}`);
       }
     });
-    this.logger.log('Callback для автоматической переавторизации установлен');
+
+    return favorites;
   }
 
   /**
-   * Проверка статуса объявления
+   * Мониторинг статусов избранных объявлений
+   * Проверяет статусы и вызывает API start для объявлений со статусом "Опубликовано (прием заявок)"
    */
-  async checkAnnounceStatus(): Promise<string | null> {
+  async monitorFavoritesStatus(): Promise<void> {
+    const taskId = 'monitorFavoritesStatus';
+    this.logger.log(`[${taskId}] Начало мониторинга статусов избранных объявлений...`);
+
     try {
-      const url = `${this.baseUrl}/ru/announce/index/${this.announceId}`;
-      this.logger.debug(`Проверка статуса объявления ${this.announceId}: ${url}`);
+      // Получаем список избранных объявлений
+      const favorites = await this.getFavorites();
 
-      // Выполняем GET запрос
-      const response = await this.httpService.get(url, {
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      });
-
-      if (!response || !response.data) {
-        this.logger.warn('Пустой ответ от сервера');
-        return null;
+      if (favorites.length === 0) {
+        this.logger.log(`[${taskId}] Нет избранных объявлений для мониторинга`);
+        return;
       }
 
-      // Парсим HTML
-      const html = typeof response.data === 'string' ? response.data : String(response.data);
-      const $ = cheerio.load(html);
+      this.logger.log(`[${taskId}] Найдено избранных объявлений: ${favorites.length}`);
 
-      // Логируем размер HTML для отладки
-      this.logger.debug(`Размер HTML ответа: ${html.length} символов`);
+      // Проверяем каждое объявление
+      for (const favorite of favorites) {
+        console.log(JSON.stringify(favorite))
+        const status = favorite.status.trim();
+        const announceId = favorite.announceId;
 
-      let status: string | null = null;
+        // Проверяем статус "Опубликовано (прием заявок)"
+        if (status === 'Опубликовано (прием заявок)' || (status.includes('Опубликовано') && status.includes('прием заявок'))) {
+          // Проверяем, не обрабатывали ли мы уже это объявление
+          if (!this.processedAnnouncements.has(announceId)) {
+            this.logger.log(`[${taskId}] Найдено объявление со статусом "Опубликовано (прием заявок)": ${announceId} (${favorite.number})`);
+            
+            try {
+              // Вызываем API start
+              await this.callStartApi(announceId);
+              
+              // Помечаем объявление как обработанное
+              this.processedAnnouncements.add(announceId);
+              this.logger.log(`[${taskId}] Объявление ${announceId} помечено как обработанное`);
+            } catch (error) {
+              this.logger.error(`[${taskId}] Ошибка при вызове API start для объявления ${announceId}: ${(error as Error).message}`);
+            }
+          } else {
+            this.logger.debug(`[${taskId}] Объявление ${announceId} уже обработано ранее, пропускаем`);
+          }
+        } else {
+          // Если статус изменился с "Опубликовано (прием заявок)" на другой, удаляем из обработанных
+          if (this.processedAnnouncements.has(announceId)) {
+            this.processedAnnouncements.delete(announceId);
+            this.logger.log(`[${taskId}] Статус объявления ${announceId} изменился на "${status}", удаляем из обработанных`);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(`[${taskId}] Ошибка при мониторинге статусов: ${(error as Error).message}`);
+      throw error;
+    }
+  }
 
-      // Метод 1: Ищем label с текстом "Статус объявления" и затем input в том же form-group
-      const labels = $('label');
-      this.logger.debug(`Найдено label элементов: ${labels.length}`);
+  /**
+   * Вызов API start для объявления
+   * @param announceId - ID объявления
+   */
+  private async callStartApi(announceId: string): Promise<void> {
+    const taskId = `callStartApi-${announceId}`;
+    this.logger.log(`[${taskId}] Вызов API start для объявления ${announceId}...`);
+
+    try {
+      // Вызываем напрямую ApplicationService
+      await this.applicationService.submitApplication(announceId);
+
+      this.logger.log(`[${taskId}] ✅ API start успешно выполнен для объявления ${announceId}`);
+
+      // После успешного запуска подачи заявки — удаляем объявление из избранного
+      await this.deleteFromFavorites(announceId);
+    } catch (error) {
+      this.logger.error(`[${taskId}] ❌ Ошибка при вызове API start: ${(error as Error).message}`);
       
-      labels.each((index, element) => {
-        const $label = $(element);
-        const labelText = $label.text().trim();
-        
-        // Проверяем, содержит ли label текст "Статус объявления"
-        if (labelText === 'Статус объявления' || labelText.includes('Статус объявления')) {
-          this.logger.debug(`Найден label: "${labelText}"`);
-          
-          // Ищем родительский form-group
-          const $formGroup = $label.closest('.form-group');
-          if ($formGroup.length > 0) {
-            // Ищем input с классом form-control внутри этого form-group
-            const $input = $formGroup.find('input.form-control');
-            if ($input.length > 0) {
-              // Пробуем получить value из атрибута или через val()
-              status = $input.attr('value') || ($input.val() as string) || null;
-              if (status) {
-                this.logger.log(`✅ Статус объявления найден: "${status}"`);
-                return false; // Прерываем цикл
-              }
-            }
-          }
-        }
-      });
-
-      // Метод 2: Если не нашли, ищем через структуру: label -> div.col-sm-7 -> input
-      if (!status) {
-        $('.form-group').each((index, element) => {
-          const $formGroup = $(element);
-          const $label = $formGroup.find('label.control-label');
-          const labelText = $label.text().trim();
-          
-          if (labelText === 'Статус объявления' || labelText.includes('Статус объявления')) {
-            // Ищем input в div.col-sm-7
-            const $input = $formGroup.find('div.col-sm-7 input.form-control');
-            if ($input.length > 0) {
-              status = $input.attr('value') || ($input.val() as string) || null;
-              if (status) {
-                this.logger.log(`✅ Статус объявления найден (метод 2): "${status}"`);
-                return false;
-              }
-            }
-          }
+      // Если прямой вызов не работает, пробуем через HTTP
+      try {
+        this.logger.log(`[${taskId}] Попытка вызова через HTTP API...`);
+        const response = await axios.post(this.mainAppUrl, { number: announceId }, {
+          timeout: 300000, // 5 минут таймаут
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
-      }
 
-      // Метод 3: Ищем по regex в HTML напрямую (надежный метод)
-      if (!status) {
-        // Ищем паттерн: "Статус объявления" ... <input ... value="..." ...>
-        const regex = /Статус объявления[\s\S]{0,300}?<input[^>]*class=["'][^"']*form-control[^"']*["'][^>]*value=["']([^"']+)["'][^>]*>/i;
-        const match = html.match(regex);
-        if (match && match[1]) {
-          status = match[1];
-          this.logger.log(`✅ Статус объявления найден (regex): "${status}"`);
-        }
-      }
+        this.logger.log(`[${taskId}] ✅ HTTP запрос выполнен успешно. Статус: ${response.status}`);
 
-      // Метод 4: Ищем все input с readonly и проверяем их родительские label
-      if (!status) {
-        const readonlyInputs = $('input[readonly]');
-        this.logger.debug(`Найдено readonly input элементов: ${readonlyInputs.length}`);
-        
-        readonlyInputs.each((index, element) => {
-          const $input = $(element);
-          const $formGroup = $input.closest('.form-group');
-          if ($formGroup.length > 0) {
-            const $label = $formGroup.find('label');
-            const labelText = $label.text().trim();
-            if (labelText === 'Статус объявления' || labelText.includes('Статус объявления')) {
-              status = $input.attr('value') || ($input.val() as string) || null;
-              if (status) {
-                this.logger.log(`✅ Статус объявления найден (readonly input): "${status}"`);
-                return false;
-              }
-            }
-          }
-        });
+        // После успешного HTTP-вызова также удаляем объявление из избранного
+        await this.deleteFromFavorites(announceId);
+      } catch (httpError) {
+        this.logger.error(`[${taskId}] ❌ Ошибка при HTTP запросе: ${(httpError as Error).message}`);
+        throw error; // Бросаем исходную ошибку
       }
-
-      if (!status) {
-        this.logger.warn('❌ Статус объявления не найден в HTML');
-        // Логируем часть HTML вокруг "Статус объявления" для отладки
-        const statusIndex = html.indexOf('Статус объявления');
-        if (statusIndex !== -1) {
-          const htmlPreview = html.substring(Math.max(0, statusIndex - 200), Math.min(html.length, statusIndex + 1000));
-          this.logger.debug(`HTML вокруг "Статус объявления":\n${htmlPreview}`);
-        }
-      }
-
-      return status;
-    } catch (error) {
-      this.logger.error(`Ошибка при проверке статуса объявления: ${error.message}`);
-      if (error.stack) {
-        this.logger.debug(error.stack);
-      }
-      return null;
     }
   }
 
   /**
-   * Получить ID объявления для мониторинга
+   * Удалить объявление из избранного на портале
+   * Делаем GET-запрос на /ru/favorites/fav/?action=delete&id={announceId}
+   * Логируем время отправки запроса и длительность выполнения
    */
-  getAnnounceId(): string {
-    return this.announceId;
-  }
+  private async deleteFromFavorites(announceId: string): Promise<void> {
+    const taskId = `deleteFromFavorites-${announceId}`;
+    const url = `/ru/favorites/fav/?action=delete&id=${announceId}`;
 
-  /**
-   * Извлечь номер лота из HTML страницы объявления
-   */
-  async getLotNumber(): Promise<string | null> {
+    // Время отправки запроса
+    const sendTime = new Date();
+    const sendTimeIso = sendTime.toISOString();
+
+    this.logger.log(`[${taskId}] Отправка запроса на удаление из избранного в ${sendTimeIso}. URL: ${url}`);
+
+    const startTime = Date.now();
+
     try {
-      const url = `${this.baseUrl}/ru/announce/index/${this.announceId}`;
-      this.logger.debug(`Получение номера лота для объявления ${this.announceId}: ${url}`);
-
-      // Выполняем GET запрос
-      const response = await this.httpService.get(url, {
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
+      // Используем PortalService, чтобы сохранить сессию/куки
+      const response = await this.portalService.request({
+        url,
+        method: 'GET',
       });
 
-      if (!response || !response.data) {
-        this.logger.warn('Пустой ответ от сервера при получении номера лота');
-        return null;
+      const durationMs = Date.now() - startTime;
+
+      if (!response.success) {
+        this.logger.warn(`[${taskId}] Запрос удаления из избранного завершился неуспешно. Время выполнения: ${durationMs} мс`);
+        return;
       }
 
-      // Парсим HTML
-      const html = typeof response.data === 'string' ? response.data : String(response.data);
-      const $ = cheerio.load(html);
-
-      // Метод 1: Ищем "Номер объявления" в form-group
-      let lotNumber: string | null = null;
-
-      $('.form-group').each((index, element) => {
-        const $formGroup = $(element);
-        const $label = $formGroup.find('label.control-label');
-        const labelText = $label.text().trim();
-        
-        if (labelText === 'Номер объявления' || labelText.includes('Номер объявления')) {
-          // Ищем input в div.col-sm-7
-          const $input = $formGroup.find('div.col-sm-7 input.form-control');
-          if ($input.length > 0) {
-            lotNumber = $input.attr('value') || ($input.val() as string) || null;
-            if (lotNumber) {
-              this.logger.log(`✅ Номер лота найден: "${lotNumber}"`);
-              return false; // Прерываем цикл
-            }
-          }
-        }
-      });
-
-      // Метод 2: Ищем в заголовке панели
-      if (!lotNumber) {
-        const panelHeading = $('.panel-heading h4').text().trim();
-        const match = panelHeading.match(/№\s*(\d+[-\d]*)/i) || panelHeading.match(/объявлени[ея]\s*№\s*(\d+[-\d]*)/i);
-        if (match && match[1]) {
-          lotNumber = match[1];
-          this.logger.log(`✅ Номер лота найден в заголовке: "${lotNumber}"`);
-        }
-      }
-
-      // Метод 3: Ищем через regex в HTML
-      if (!lotNumber) {
-        const regex = /Номер объявления[\s\S]{0,300}?<input[^>]*value=["']([^"']+)["'][^>]*>/i;
-        const match = html.match(regex);
-        if (match && match[1]) {
-          lotNumber = match[1];
-          this.logger.log(`✅ Номер лота найден (regex): "${lotNumber}"`);
-        }
-      }
-
-      if (!lotNumber) {
-        this.logger.warn('❌ Номер лота не найден в HTML');
-      }
-
-      return lotNumber;
+      this.logger.log(
+        `[${taskId}] ✅ Объявление ${announceId} удалено из избранного. Время отправки: ${sendTimeIso}, время выполнения: ${durationMs} мс`,
+      );
     } catch (error) {
-      this.logger.error(`Ошибка при получении номера лота: ${error.message}`);
-      if (error.stack) {
-        this.logger.debug(error.stack);
-      }
-      return null;
+      const durationMs = Date.now() - startTime;
+      this.logger.error(
+        `[${taskId}] ❌ Ошибка при удалении из избранного (ID=${announceId}). Время отправки: ${sendTimeIso}, время выполнения: ${durationMs} мс. Ошибка: ${(error as Error).message}`,
+      );
     }
+  }
+
+  /**
+   * Сброс списка обработанных объявлений (для тестирования или перезапуска)
+   */
+  resetProcessedAnnouncements(): void {
+    this.processedAnnouncements.clear();
+    this.logger.log('Список обработанных объявлений очищен');
   }
 }
 
