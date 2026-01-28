@@ -13,7 +13,7 @@ export class TelegramService {
   constructor(private configService: ConfigService) {
     this.botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN', '');
     this.chatId = this.configService.get<string>('TELEGRAM_CHAT_ID', '');
-    this.enabled = this.configService.get<string>('TELEGRAM_ENABLED', 'false') === 'true';
+    this.enabled = this.configService.get<string>('TELEGRAM_ENABLED', 'true') === 'true';
     
     if (this.botToken) {
       this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;

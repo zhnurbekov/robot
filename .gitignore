@@ -1,10 +1,14 @@
 # Dependencies
 node_modules/
+package-lock.json
+yarn.lock
 
-# Environment variables
+# Environment variables (ВАЖНО: содержит секреты!)
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
 
 # Logs
 logs/
@@ -12,31 +16,131 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-node_modules
-# Session data
-data/sessions/
+lerna-debug.log*
+pnpm-debug.log*
+
+# Session data и временные данные
+data/
 *.session.json
+*.session
+*.cache
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# IDE
+# IDE и редакторы
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 *~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
 
-# Certificates (не коммитить!)
+# Certificates и ключи (КРИТИЧНО: не коммитить!)
 *.p12
 *.pfx
 *.cer
 *.crt
 *.key
+*.pem
+*.jks
+*.keystore
+*.p8
+*.pem
+id_rsa
+id_rsa.pub
+*.pub
 
-# Build
+# Build и compiled files
 dist/
 build/
+out/
+*.tsbuildinfo
+.next/
+.nuxt/
+.cache/
 
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# Redis dumps
+dump.rdb
+*.rdb
+
+# NCANode (если это внешняя библиотека/подмодуль)
+# NCANode/
+
+# Monitoring и debug файлы
+data/monitor/
+*.pid
+*.seed
+*.pid.lock
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.parcel-cache
+
+# Next.js
+.next
+
+# Nuxt.js
+.nuxt
+
+# Gatsby
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
 
