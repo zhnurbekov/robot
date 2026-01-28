@@ -6,6 +6,7 @@ import { HttpModule } from './modules/http/http.module';
 import { SessionModule } from './modules/session/session.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { TelegramModule } from './modules/telegram/telegram.module';
 import { AnnounceMonitorModule } from './modules/announce-monitor/announce-monitor.module';
 import { SessionService } from './modules/session/session.service';
 import { AuthService } from './modules/auth/auth.service';
@@ -26,6 +27,7 @@ import { Logger } from '@nestjs/common';
     HttpModule,
     SessionModule,
     AuthModule,
+    TelegramModule,
     AnnounceMonitorModule,
   ],
   providers: [],

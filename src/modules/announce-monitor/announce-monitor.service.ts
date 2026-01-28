@@ -5,6 +5,7 @@ import { AuthService } from '../auth/auth.service';
 import { PortalService } from '../portal/portal.service';
 import { ApplicationService } from '../application/application.service';
 import { RedisService } from '../redis/redis.service';
+import { TelegramService } from '../telegram/telegram.service';
 import * as cheerio from 'cheerio';
 import axios from 'axios';
 
@@ -41,6 +42,7 @@ export class AnnounceMonitorService {
     @Inject(forwardRef(() => ApplicationService))
     private applicationService: ApplicationService,
     private redisService: RedisService,
+    private telegramService: TelegramService,
   ) {
     // URL основного приложения для вызова API start
     const mainAppPort = this.configService.get<number>('PORT', 3000);
@@ -220,18 +222,50 @@ export class AnnounceMonitorService {
           if (!isProcessing) {
             this.logger.log(`[${taskId}] Найдено объявление со статусом "Опубликовано (прием заявок)": ${announceId} (${favorite.number})`);
             
+            // Время начала обработки
+            const startTime = new Date();
+            
             try {
               // Записываем в Redis перед началом обработки
-              const timestamp = new Date().toISOString();
+              const timestamp = startTime.toISOString();
               await this.redisService.set(redisKey, timestamp, this.redisTtlHours * 3600);
               this.logger.log(`[${taskId}] Объявление ${announceId} записано в Redis для предотвращения повторной обработки`);
               
               // Вызываем API start
               await this.callStartApi(announceId);
               
-              this.logger.log(`[${taskId}] Объявление ${announceId} успешно обработано`);
+              // Время окончания обработки
+              const endTime = new Date();
+              const durationMs = endTime.getTime() - startTime.getTime();
+              
+              this.logger.log(`[${taskId}] Объявление ${announceId} успешно обработано за ${durationMs} мс`);
+              
+              // Отправляем уведомление в Telegram об успешной обработке
+              await this.telegramService.sendApplicationNotification(
+                announceId,
+                'success',
+                startTime,
+                endTime,
+                durationMs,
+              );
             } catch (error) {
-              this.logger.error(`[${taskId}] Ошибка при вызове API start для объявления ${announceId}: ${(error as Error).message}`);
+              // Время окончания обработки (с ошибкой)
+              const endTime = new Date();
+              const durationMs = endTime.getTime() - startTime.getTime();
+              const errorMessage = (error as Error).message;
+              
+              this.logger.error(`[${taskId}] Ошибка при вызове API start для объявления ${announceId}: ${errorMessage}`);
+              
+              // Отправляем уведомление в Telegram об ошибке
+              await this.telegramService.sendApplicationNotification(
+                announceId,
+                'error',
+                startTime,
+                endTime,
+                durationMs,
+                errorMessage,
+              );
+              
               // При ошибке можно удалить ключ из Redis, чтобы попробовать снова при следующем запуске
               // Или оставить ключ, чтобы не повторять обработку сломанных объявлений
               // await this.redisService.delete(redisKey);
