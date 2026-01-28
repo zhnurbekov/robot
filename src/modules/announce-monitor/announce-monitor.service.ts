@@ -4,6 +4,7 @@ import { HttpService } from '../http/http.service';
 import { AuthService } from '../auth/auth.service';
 import { PortalService } from '../portal/portal.service';
 import { ApplicationService } from '../application/application.service';
+import { RedisService } from '../redis/redis.service';
 import * as cheerio from 'cheerio';
 import axios from 'axios';
 
@@ -28,7 +29,8 @@ export class AnnounceMonitorService {
   private readonly logger = new Logger(AnnounceMonitorService.name);
 
   private readonly mainAppUrl: string;
-  private processedAnnouncements: Set<string> = new Set(); // Храним ID объявлений, которые уже обработаны
+  private readonly redisKeyPrefix = 'announcement:processing:'; // Префикс для ключей Redis
+  private readonly redisTtlHours = 24; // TTL в часах (24 часа = 86400 секунд)
 
   constructor(
     private httpService: HttpService,
@@ -38,6 +40,7 @@ export class AnnounceMonitorService {
     private portalService: PortalService,
     @Inject(forwardRef(() => ApplicationService))
     private applicationService: ApplicationService,
+    private redisService: RedisService,
   ) {
     // URL основного приложения для вызова API start
     const mainAppPort = this.configService.get<number>('PORT', 3000);
@@ -205,34 +208,45 @@ export class AnnounceMonitorService {
 
       // Проверяем каждое объявление
       for (const favorite of favorites) {
-        console.log(JSON.stringify(favorite))
         const status = favorite.status.trim();
         const announceId = favorite.announceId;
 
         // Проверяем статус "Опубликовано (прием заявок)"
         if (status === 'Опубликовано (прием заявок)' || (status.includes('Опубликовано') && status.includes('прием заявок'))) {
-          // Проверяем, не обрабатывали ли мы уже это объявление
-          if (!this.processedAnnouncements.has(announceId)) {
+          // Проверяем в Redis, не обрабатывается ли уже это объявление
+          const redisKey = `${this.redisKeyPrefix}${announceId}`;
+          const isProcessing = await this.redisService.exists(redisKey);
+          
+          if (!isProcessing) {
             this.logger.log(`[${taskId}] Найдено объявление со статусом "Опубликовано (прием заявок)": ${announceId} (${favorite.number})`);
             
             try {
+              // Записываем в Redis перед началом обработки
+              const timestamp = new Date().toISOString();
+              await this.redisService.set(redisKey, timestamp, this.redisTtlHours * 3600);
+              this.logger.log(`[${taskId}] Объявление ${announceId} записано в Redis для предотвращения повторной обработки`);
+              
               // Вызываем API start
               await this.callStartApi(announceId);
               
-              // Помечаем объявление как обработанное
-              this.processedAnnouncements.add(announceId);
-              this.logger.log(`[${taskId}] Объявление ${announceId} помечено как обработанное`);
+              this.logger.log(`[${taskId}] Объявление ${announceId} успешно обработано`);
             } catch (error) {
               this.logger.error(`[${taskId}] Ошибка при вызове API start для объявления ${announceId}: ${(error as Error).message}`);
+              // При ошибке можно удалить ключ из Redis, чтобы попробовать снова при следующем запуске
+              // Или оставить ключ, чтобы не повторять обработку сломанных объявлений
+              // await this.redisService.delete(redisKey);
             }
           } else {
-            this.logger.debug(`[${taskId}] Объявление ${announceId} уже обработано ранее, пропускаем`);
+            const processingTime = await this.redisService.get(redisKey);
+            this.logger.debug(`[${taskId}] Объявление ${announceId} уже обрабатывается (записано в Redis: ${processingTime}), пропускаем`);
           }
         } else {
-          // Если статус изменился с "Опубликовано (прием заявок)" на другой, удаляем из обработанных
-          if (this.processedAnnouncements.has(announceId)) {
-            this.processedAnnouncements.delete(announceId);
-            this.logger.log(`[${taskId}] Статус объявления ${announceId} изменился на "${status}", удаляем из обработанных`);
+          // Если статус изменился с "Опубликовано (прием заявок)" на другой, удаляем из Redis
+          const redisKey = `${this.redisKeyPrefix}${announceId}`;
+          const exists = await this.redisService.exists(redisKey);
+          if (exists) {
+            await this.redisService.delete(redisKey);
+            this.logger.log(`[${taskId}] Статус объявления ${announceId} изменился на "${status}", удаляем из Redis`);
           }
         }
       }
@@ -325,11 +339,23 @@ export class AnnounceMonitorService {
   }
 
   /**
-   * Сброс списка обработанных объявлений (для тестирования или перезапуска)
+   * Сброс списка обработанных объявлений в Redis (для тестирования или перезапуска)
+   * Удаляет все ключи с префиксом announcement:processing:
    */
-  resetProcessedAnnouncements(): void {
-    this.processedAnnouncements.clear();
-    this.logger.log('Список обработанных объявлений очищен');
+  async resetProcessedAnnouncements(): Promise<void> {
+    // Примечание: RedisService не имеет метода для удаления по паттерну
+    // Можно добавить такой метод или удалять ключи вручную
+    this.logger.log('Для очистки Redis используйте команду: redis-cli KEYS "announcement:processing:*" | xargs redis-cli DEL');
+    this.logger.warn('Метод resetProcessedAnnouncements() требует реализации удаления по паттерну в RedisService');
+  }
+
+  /**
+   * Удалить конкретное объявление из Redis (для тестирования)
+   */
+  async removeFromRedis(announceId: string): Promise<void> {
+    const redisKey = `${this.redisKeyPrefix}${announceId}`;
+    await this.redisService.delete(redisKey);
+    this.logger.log(`Объявление ${announceId} удалено из Redis`);
   }
 }
 

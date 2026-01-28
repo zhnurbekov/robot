@@ -32,7 +32,7 @@ export class AnnounceMonitorScheduler implements OnModuleInit {
    * Мониторинг статусов избранных объявлений
    * Проверяет статусы каждые 30 секунд и вызывает API start для объявлений со статусом "Опубликовано (прием заявок)"
    */
-  @Interval(30000) // 30000 мс = 30 секунд
+  @Interval(1000) // 30000 мс = 30 секунд
   async handleInterval() {
     if (!this.isEnabled) {
       return;
