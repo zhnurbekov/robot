@@ -265,10 +265,14 @@ export class AnnounceMonitorService {
                 durationMs,
                 errorMessage,
               );
-              
-              // При ошибке можно удалить ключ из Redis, чтобы попробовать снова при следующем запуске
-              // Или оставить ключ, чтобы не повторять обработку сломанных объявлений
-              // await this.redisService.delete(redisKey);
+            } finally {
+              // Удаляем из Redis после обработки (независимо от результата)
+              try {
+                await this.redisService.delete(redisKey);
+                this.logger.log(`[${taskId}] Объявление ${announceId} удалено из Redis после обработки`);
+              } catch (deleteError) {
+                this.logger.warn(`[${taskId}] Не удалось удалить объявление ${announceId} из Redis: ${(deleteError as Error).message}`);
+              }
             }
           } else {
             const processingTime = await this.redisService.get(redisKey);
