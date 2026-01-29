@@ -30,8 +30,10 @@ export class AnnounceMonitorService {
   private readonly logger = new Logger(AnnounceMonitorService.name);
 
   private readonly mainAppUrl: string;
-  private readonly redisKeyPrefix = 'announcement:processing:'; // Префикс для ключей Redis
-  private readonly redisTtlHours = 24; // TTL в часах (24 часа = 86400 секунд)
+  /** Ключ Redis: announcement:processing:{announceId} — заявка в процессе обработки. Только такие ID пропускаются; остальные обрабатываются. */
+  private readonly redisKeyPrefix = 'announcement:processing:';
+  /** TTL на случай падения процесса: через 1 мин ключ исчезнет и заявку можно будет взять снова */
+  private readonly redisTtlSeconds = 60; // 1 минута
 
   constructor(
     private httpService: HttpService,
@@ -215,32 +217,24 @@ export class AnnounceMonitorService {
 
         // Проверяем статус "Опубликовано (прием заявок)"
         if (status === 'Опубликовано (прием заявок)' || (status.includes('Опубликовано') && status.includes('прием заявок'))) {
-          // Проверяем в Redis, не обрабатывается ли уже это объявление
           const redisKey = `${this.redisKeyPrefix}${announceId}`;
-          const isProcessing = await this.redisService.exists(redisKey);
-          
-          if (!isProcessing) {
-            this.logger.log(`[${taskId}] Найдено объявление со статусом "Опубликовано (прием заявок)": ${announceId} (${favorite.number})`);
-            
-            // Время начала обработки
+          // Пропускаем только те заявки, которые уже в процессе обработки (их ID есть в Redis). Остальные обрабатываем.
+          const isInProgress = await this.redisService.exists(redisKey);
+
+          if (!isInProgress) {
+            this.logger.log(`[${taskId}] Заявка для обработки: ${announceId} (${favorite.number}). Записываем ID в Redis (в процессе).`);
             const startTime = new Date();
-            
+
             try {
-              // Записываем в Redis перед началом обработки
-              const timestamp = startTime.toISOString();
-              await this.redisService.set(redisKey, timestamp, this.redisTtlHours * 3600);
-              this.logger.log(`[${taskId}] Объявление ${announceId} записано в Redis для предотвращения повторной обработки`);
-              
-              // Вызываем API start
+              // При запуске обработки записываем в Redis только ID этой заявки — другие заявки не трогаем и они обрабатываются
+              await this.redisService.set(redisKey, startTime.toISOString(), this.redisTtlSeconds);
+              this.logger.log(`[${taskId}] В Redis записан ID ${announceId}: заявка в процессе обработки`);
+
               await this.callStartApi(announceId);
-              
-              // Время окончания обработки
+
               const endTime = new Date();
               const durationMs = endTime.getTime() - startTime.getTime();
-              
               this.logger.log(`[${taskId}] Объявление ${announceId} успешно обработано за ${durationMs} мс`);
-              
-              // Отправляем уведомление в Telegram об успешной обработке
               await this.telegramService.sendApplicationNotification(
                 announceId,
                 'success',
@@ -249,14 +243,10 @@ export class AnnounceMonitorService {
                 durationMs,
               );
             } catch (error) {
-              // Время окончания обработки (с ошибкой)
               const endTime = new Date();
               const durationMs = endTime.getTime() - startTime.getTime();
               const errorMessage = (error as Error).message;
-              
               this.logger.error(`[${taskId}] Ошибка при вызове API start для объявления ${announceId}: ${errorMessage}`);
-              
-              // Отправляем уведомление в Telegram об ошибке
               await this.telegramService.sendApplicationNotification(
                 announceId,
                 'error',
@@ -266,25 +256,24 @@ export class AnnounceMonitorService {
                 errorMessage,
               );
             } finally {
-              // Удаляем из Redis после обработки (независимо от результата)
+              // Удаляем запись из Redis при успехе и при ошибке — заявка больше не «в процессе»
               try {
                 await this.redisService.delete(redisKey);
-                this.logger.log(`[${taskId}] Объявление ${announceId} удалено из Redis после обработки`);
+                this.logger.log(`[${taskId}] Запись ${announceId} удалена из Redis (обработка завершена)`);
               } catch (deleteError) {
-                this.logger.warn(`[${taskId}] Не удалось удалить объявление ${announceId} из Redis: ${(deleteError as Error).message}`);
+                this.logger.warn(`[${taskId}] Не удалось удалить ${announceId} из Redis: ${(deleteError as Error).message}`);
               }
             }
           } else {
-            const processingTime = await this.redisService.get(redisKey);
-            this.logger.debug(`[${taskId}] Объявление ${announceId} уже обрабатывается (записано в Redis: ${processingTime}), пропускаем`);
+            this.logger.debug(`[${taskId}] Объявление ${announceId} уже в процессе обработки (ID в Redis), пропускаем`);
           }
         } else {
-          // Если статус изменился с "Опубликовано (прием заявок)" на другой, удаляем из Redis
+          // Статус изменился — если этот ID был в Redis, убираем
           const redisKey = `${this.redisKeyPrefix}${announceId}`;
           const exists = await this.redisService.exists(redisKey);
           if (exists) {
             await this.redisService.delete(redisKey);
-            this.logger.log(`[${taskId}] Статус объявления ${announceId} изменился на "${status}", удаляем из Redis`);
+            this.logger.log(`[${taskId}] Статус объявления ${announceId} изменился на "${status}", удаляем ID из Redis`);
           }
         }
       }

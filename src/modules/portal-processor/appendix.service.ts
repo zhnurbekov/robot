@@ -25,7 +25,7 @@ export class AppendixService {
 		private ncanodeService: NcanodeService,
 		private redisService: RedisService,
 	) {
-		this.enableFileCache = this.configService.get<boolean>('ENABLE_REDIS_FILE_CACHE', true);
+		this.enableFileCache = this.configService.get<boolean>('ENABLE_REDIS_FILE_CACHE', false);
 	}
 
 	async firstAppendixHandle(announceId: string, applicationId: string, docId: string): Promise<any> {
@@ -308,17 +308,20 @@ export class AppendixService {
 	// }
 
 	/**
-	 * Скачать файл по URL в память (Buffer) с кэшированием в Redis
+	 * Скачать файл по URL в память (Buffer), опционально с кэшированием в Redis
+	 * @param filenameHint — имя файла со страницы (например "1.rar", "Том 7 - ПОС.pdf") для определения расширения
+	 * @param skipCache — если true, не использовать Redis (скачать → сразу отдать; удобно при немедленной подписи)
 	 * Возвращает Buffer и расширение файла
 	 */
-	async downloadFile(fileUrl: string, taskId: string): Promise<{ fileBuffer: Buffer; ext: string }> {
+	async downloadFile(fileUrl: string, taskId: string, filenameHint?: string, skipCache?: boolean): Promise<{ fileBuffer: Buffer; ext: string }> {
 		try {
-			// Создаем хэш URL для кэширования
-			const urlHash = crypto.createHash('sha256').update(fileUrl).digest('hex');
+			const useCache = this.enableFileCache && !skipCache;
+			const cacheInput = filenameHint ? `${fileUrl}|${filenameHint}` : fileUrl;
+			const urlHash = crypto.createHash('sha256').update(cacheInput).digest('hex');
 			const cacheKey = `${this.fileCacheKeyPrefix}${urlHash}`;
-			
-			// Пробуем получить из кэша Redis (если кэширование включено)
-			if (this.enableFileCache) {
+
+			// Пробуем получить из кэша Redis (если кэширование включено и не skipCache)
+			if (useCache) {
 				const cachedFile = await this.redisService.get(cacheKey);
 				if (cachedFile) {
 					this.logger.debug(`[${taskId}] Файл получен из кэша Redis: ${fileUrl}`);
@@ -329,12 +332,12 @@ export class AppendixService {
 					};
 				}
 			}
-			
-			// Если нет в кэше, скачиваем
+
+			// Скачиваем
 			const baseURL = this.configService.get<string>('PORTAL_BASE_URL', 'https://v3bl.goszakup.gov.kz');
 			const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseURL}${fileUrl}`;
 			
-			this.logger.debug(`[${taskId}] Скачивание файла с ${fullUrl}`);
+			this.logger.debug(`[${taskId}] Скачивание файла с ${fullUrl}${filenameHint ? ` (имя со страницы: ${filenameHint})` : ''}`);
 			
 			const response = await this.httpService.get(fileUrl, {
 				responseType: 'arraybuffer',
@@ -343,73 +346,79 @@ export class AppendixService {
 			
 			const fileBuffer = Buffer.from(response.data);
 			
-			// Определяем расширение файла
-			// Сначала проверяем расширение из URL
+			// Проверка: если сервер вернул HTML (страница ошибки/логина), не подписываем как файл
+			if (fileBuffer.length >= 50) {
+				const start = fileBuffer.toString('utf-8', 0, 100).trim().toLowerCase();
+				if (start.startsWith('<!doctype html') || start.startsWith('<html')) {
+					this.logger.error(`[${taskId}] По URL получена HTML-страница вместо файла. URL: ${fileUrl}`);
+					throw new Error('По URL получена HTML-страница вместо файла (возможно, требуется авторизация или файл недоступен)');
+				}
+			}
+			
+			// Определяем расширение: приоритет — имя файла со страницы (filenameHint)
 			let ext = '.tmp';
-			const urlLower = fileUrl.toLowerCase();
-			if (urlLower.includes('.pdf')) ext = '.pdf';
-			else if (urlLower.includes('.docx')) ext = '.docx';
-			else if (urlLower.includes('.doc')) ext = '.doc';
-			else if (urlLower.includes('.xml')) ext = '.xml';
-			else if (urlLower.includes('.zip')) ext = '.zip';
-			else {
-				// Если не нашли в URL, проверяем content-type
-				const contentType = response.headers['content-type'] || '';
-				if (contentType.includes('pdf')) ext = '.pdf';
-				else if (contentType.includes('docx') || contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) ext = '.docx';
-				else if (contentType.includes('doc') || contentType.includes('application/msword')) ext = '.doc';
-				else if (contentType.includes('xml') && contentType.includes('text/xml') || contentType.includes('application/xml')) ext = '.xml';
-				else if (contentType.includes('zip')) ext = '.zip';
+			if (filenameHint && filenameHint.trim()) {
+				const match = filenameHint.trim().match(/\.([a-z0-9]+)$/i);
+				if (match) {
+					ext = '.' + match[1].toLowerCase();
+					this.logger.debug(`[${taskId}] Расширение из имени файла со страницы: ${ext}`);
+				}
+			}
+			if (ext === '.tmp') {
+				// Расширение из URL
+				const urlLower = fileUrl.toLowerCase();
+				if (urlLower.includes('.pdf')) ext = '.pdf';
+				else if (urlLower.includes('.docx')) ext = '.docx';
+				else if (urlLower.includes('.doc')) ext = '.doc';
+				else if (urlLower.includes('.xml')) ext = '.xml';
+				else if (urlLower.includes('.zip')) ext = '.zip';
+				else if (urlLower.includes('.rar')) ext = '.rar';
 				else {
-					// Проверяем magic bytes для более точного определения
-					// PDF: %PDF
-					if (fileBuffer.length >= 4 && fileBuffer[0] === 0x25 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x44 && fileBuffer[3] === 0x46) {
-						ext = '.pdf';
-					}
-					// ZIP/DOCX: PK (ZIP signature)
-					else if (fileBuffer.length >= 2 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4B) {
-						// Проверяем, это docx или обычный zip
-						const bufferStr = fileBuffer.toString('utf-8', 0, Math.min(1000, fileBuffer.length));
-						if (bufferStr.includes('word/') || bufferStr.includes('[Content_Types].xml')) {
-							ext = '.docx';
-						} else {
-							ext = '.zip';
-						}
-					}
-					// XML: начинается с <?xml или <root
-					else if (fileBuffer.length >= 5) {
-						const startStr = fileBuffer.toString('utf-8', 0, Math.min(100, fileBuffer.length)).trim();
-						if (startStr.startsWith('<?xml') || startStr.startsWith('<root') || startStr.startsWith('<')) {
-							// Проверяем, что это действительно XML (нет недопустимых символов)
-							try {
-								const testStr = fileBuffer.toString('utf-8');
-								// Проверяем на наличие недопустимых XML символов (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F кроме 0x09, 0x0A, 0x0D)
-								const invalidXmlChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F]/;
-								if (!invalidXmlChars.test(testStr)) {
-									ext = '.xml';
+					const contentType = (response.headers && (response.headers as Record<string, string>)['content-type']) || '';
+					if (contentType.includes('pdf')) ext = '.pdf';
+					else if (contentType.includes('docx') || contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) ext = '.docx';
+					else if (contentType.includes('doc') || contentType.includes('application/msword')) ext = '.doc';
+					else if ((contentType.includes('xml') && contentType.includes('text/xml')) || contentType.includes('application/xml')) ext = '.xml';
+					else if (contentType.includes('zip') || contentType.includes('x-rar')) ext = contentType.includes('x-rar') ? '.rar' : '.zip';
+					else {
+						// Magic bytes
+						if (fileBuffer.length >= 4 && fileBuffer[0] === 0x25 && fileBuffer[1] === 0x50 && fileBuffer[2] === 0x44 && fileBuffer[3] === 0x46) {
+							ext = '.pdf';
+						} else if (fileBuffer.length >= 2 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4B) {
+							const bufferStr = fileBuffer.toString('utf-8', 0, Math.min(1000, fileBuffer.length));
+							ext = (bufferStr.includes('word/') || bufferStr.includes('[Content_Types].xml')) ? '.docx' : '.zip';
+						} else if (fileBuffer.length >= 4 && fileBuffer[0] === 0x52 && fileBuffer[1] === 0x61 && fileBuffer[2] === 0x72 && fileBuffer[3] === 0x21) {
+							ext = '.rar';
+						} else if (fileBuffer.length >= 5) {
+							const startStr = fileBuffer.toString('utf-8', 0, Math.min(100, fileBuffer.length)).trim();
+							if ((startStr.startsWith('<?xml') || startStr.startsWith('<root')) && !startStr.startsWith('<!')) {
+								try {
+									const testStr = fileBuffer.toString('utf-8');
+									const invalidXmlChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F]/;
+									if (!invalidXmlChars.test(testStr)) ext = '.xml';
+								} catch (e) {
+									// ignore
 								}
-							} catch (e) {
-								// Если не удалось преобразовать в строку, это не XML
 							}
 						}
 					}
 				}
 			}
 			
-			this.logger.debug(`[${taskId}] Определено расширение файла: ${ext} (URL: ${fileUrl}, Content-Type: ${response.headers['content-type'] || 'не указан'})`);
-			
-			// Кэшируем в Redis только если файл небольшой
-			if (this.enableFileCache && fileBuffer.length <= this.maxCacheSize) {
+			this.logger.debug(`[${taskId}] Определено расширение файла: ${ext} (URL: ${fileUrl}, filenameHint: ${filenameHint || '—'}, Content-Type: ${response.headers && (response.headers as Record<string, string>)['content-type'] || 'не указан'})`);
+
+			// Кэшируем в Redis только если кэш включен, не skipCache и файл небольшой
+			if (useCache && fileBuffer.length <= this.maxCacheSize) {
 				const cacheData = {
 					data: fileBuffer.toString('base64'),
 					ext,
 				};
 				await this.redisService.set(cacheKey, JSON.stringify(cacheData), this.fileCacheTtl);
 				this.logger.debug(`[${taskId}] Файл сохранен в кэш Redis: ${fileUrl} (${fileBuffer.length} байт)`);
-			} else if (fileBuffer.length > this.maxCacheSize) {
+			} else if (useCache && fileBuffer.length > this.maxCacheSize) {
 				this.logger.debug(`[${taskId}] Файл слишком большой для кэширования: ${fileBuffer.length} байт`);
 			}
-			
+
 			return { fileBuffer, ext };
 		} catch (error) {
 			this.logger.error(`[${taskId}] Ошибка скачивания файла: ${(error as Error).message}`);
@@ -421,15 +430,16 @@ export class AppendixService {
 	 * Подписать файл через ncanode
 	 * Принимает Buffer и расширение файла, возвращает Buffer или string
 	 * @param fileUrl - опциональный URL файла для удаления оригинального файла из кэша после подписания
+	 * @param skipCache - если true, не использовать Redis (подписать и вернуть результат без кэша)
 	 */
-	async signFile(fileBuffer: Buffer, ext: string, taskId: string, fileUrl?: string): Promise<Buffer | string> {
+	async signFile(fileBuffer: Buffer, ext: string, taskId: string, fileUrl?: string, skipCache?: boolean): Promise<Buffer | string> {
 		try {
-			// Создаем хэш файла для кэширования подписанной версии
+			const useCache = this.enableFileCache && !skipCache;
 			const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 			const cacheKey = `${this.signedFileCacheKeyPrefix}${fileHash}`;
-			
-			// Пробуем получить подписанный файл из кэша Redis (если кэширование включено)
-			if (this.enableFileCache) {
+
+			// Пробуем получить подписанный файл из кэша Redis
+			if (useCache) {
 				const cachedSigned = await this.redisService.get(cacheKey);
 				if (cachedSigned) {
 					this.logger.debug(`[${taskId}] Подписанный файл получен из кэша Redis`);
@@ -440,8 +450,8 @@ export class AppendixService {
 					return Buffer.from(cachedData.data, 'base64');
 				}
 			}
-			
-			// Если нет в кэше, подписываем
+
+			// Подписываем
 			const certPath = this.configService.get<string>('CERT_PATH', '');
 			const certPassword = this.configService.get<string>('CERT_PASSWORD', '');
 			
@@ -495,12 +505,11 @@ export class AppendixService {
 				isString = false;
 			}
 			
-			// Кэшируем подписанный файл в Redis только если кэширование включено и файл небольшой
-			if (this.enableFileCache) {
+			// Кэшируем подписанный файл в Redis только если useCache и файл небольшой
+			if (useCache) {
 				const signedSize = typeof signedDocument === 'string'
 					? Buffer.byteLength(signedDocument, 'utf-8')
 					: signedDocument.length;
-				
 				if (signedSize <= this.maxCacheSize) {
 					const cacheData = {
 						data: typeof signedDocument === 'string'
@@ -514,9 +523,9 @@ export class AppendixService {
 					this.logger.debug(`[${taskId}] Подписанный файл слишком большой для кэширования: ${signedSize} байт`);
 				}
 			}
-			
-			// Удаляем оригинальный файл из кэша Redis после успешного подписания
-			if (this.enableFileCache && fileUrl) {
+
+			// Удаляем оригинальный файл из кэша Redis после успешного подписания (только если мы его кэшировали)
+			if (useCache && fileUrl) {
 				try {
 					const urlHash = crypto.createHash('sha256').update(fileUrl).digest('hex');
 					const originalFileCacheKey = `${this.fileCacheKeyPrefix}${urlHash}`;

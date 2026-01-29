@@ -32,7 +32,7 @@ export class ApplicationService {
 		private httpService: HttpService,
 		private redisService: RedisService,
 	) {
-		this.enableFileCache = this.configService.get<boolean>('ENABLE_REDIS_FILE_CACHE', true);
+		this.enableFileCache = this.configService.get<boolean>('ENABLE_REDIS_FILE_CACHE', false);
 		// Создаем временную директорию для файлов (fallback для больших файлов)
 		this.tempDir = path.join(os.tmpdir(), 'goszakup-docs');
 		this.ensureTempDir();
@@ -76,9 +76,6 @@ export class ApplicationService {
 			await this.authService.login();
 			
 			
-			// await this.portalProcessorService.dataSheetHandle('16040144', '68693909', '3357', '80876413', '2');
-			//
-			// return
 			// Создаем объявление
 			const announcement = await this.portalProcessorService.processAnnouncementCreate(announcementsId);
 			

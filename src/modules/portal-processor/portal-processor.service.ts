@@ -2563,52 +2563,37 @@ export class PortalProcessorService implements IPortalProcessor {
 				throw new Error('Не удалось извлечь data-url или fileIdentifier из HTML');
 			}
 			
-			this.logger.log(`[${taskId}] Найдено файлов для обработки: ${allFileData.length}`);
+			this.logger.log(`[${taskId}] Найдено файлов для обработки: ${allFileData.length}. Скачивание и подписание — параллельно.`);
 			
-			// Шаг 3: Скачать и подписать все файлы
-			const fileSignatures: Array<{ fileIdentifier: string; signature: string }> = [];
-			
-			for (const fileData of allFileData) {
+			// Шаг 3: Скачать и подписать все файлы параллельно
+			const processOneFile = async (fileData: { dataUrl: string; fileIdentifier: string; filename?: string }): Promise<{ fileIdentifier: string; signature: string }> => {
 				const fileTaskId = `${taskId}-${fileData.fileIdentifier}`;
-				
-				try {
-					this.logger.log(`[${fileTaskId}] Скачивание файла ${fileData.dataUrl}...`);
-					const { fileBuffer, ext } = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId);
-					this.logger.log(`[${fileTaskId}] Файл скачан в память (${fileBuffer.length} байт)`);
-					
-					this.logger.log(`[${fileTaskId}] Подписание файла...`);
-					const signedDocument = await this.appendixService.signFile(fileBuffer, ext, fileTaskId, fileData.dataUrl);
-					this.logger.log(`[${fileTaskId}] Файл подписан`);
-					
-					// Извлечь подпись из подписанного файла
-					let signature: string;
-					if (ext === '.xml') {
-						const xmlContent = typeof signedDocument === 'string' ? signedDocument : signedDocument.toString('utf-8');
-						const signatureMatch = xmlContent.match(/<[^:]*:?SignatureValue[^>]*>([^<]+)<\/[^:]*:?SignatureValue>/i);
-						if (signatureMatch && signatureMatch[1]) {
-							signature = signatureMatch[1].trim();
-						} else {
-							signature = typeof signedDocument === 'string' 
-								? Buffer.from(xmlContent, 'utf-8').toString('base64')
-								: signedDocument.toString('base64');
-						}
+				this.logger.log(`[${fileTaskId}] Скачивание файла ${fileData.dataUrl}${fileData.filename ? ` (имя: ${fileData.filename})` : ''}...`);
+				const { fileBuffer, ext } = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId, fileData.filename, true);
+				this.logger.log(`[${fileTaskId}] Файл скачан (${fileBuffer.length} байт), расширение: ${ext}. Подписание...`);
+				const signedDocument = await this.appendixService.signFile(fileBuffer, ext, fileTaskId, fileData.dataUrl, true);
+				this.logger.log(`[${fileTaskId}] Файл подписан`);
+				let signature: string;
+				if (ext === '.xml') {
+					const xmlContent = typeof signedDocument === 'string' ? signedDocument : signedDocument.toString('utf-8');
+					const signatureMatch = xmlContent.match(/<[^:]*:?SignatureValue[^>]*>([^<]+)<\/[^:]*:?SignatureValue>/i);
+					if (signatureMatch && signatureMatch[1]) {
+						signature = signatureMatch[1].trim();
 					} else {
 						signature = typeof signedDocument === 'string'
-							? Buffer.from(signedDocument, 'utf-8').toString('base64')
+							? Buffer.from(xmlContent, 'utf-8').toString('base64')
 							: signedDocument.toString('base64');
 					}
-					
-					fileSignatures.push({
-						fileIdentifier: fileData.fileIdentifier,
-						signature,
-					});
-					
-					this.logger.log(`[${fileTaskId}] Подпись извлечена, длина: ${signature.length}`);
-				} catch (error) {
-					this.logger.error(`[${fileTaskId}] Ошибка при обработке файла: ${(error as Error).message}`);
-					throw error;
+				} else {
+					signature = typeof signedDocument === 'string'
+						? Buffer.from(signedDocument, 'utf-8').toString('base64')
+						: signedDocument.toString('base64');
 				}
-			}
+				this.logger.log(`[${fileTaskId}] Подпись извлечена, длина: ${signature.length}`);
+				return { fileIdentifier: fileData.fileIdentifier, signature };
+			};
+
+			const fileSignatures = await Promise.all(allFileData.map((fileData) => processOneFile(fileData)));
 			
 			// Шаг 4: Отправить POST запрос со всеми подписями
 			this.logger.log(`[${taskId}] Отправка POST запроса с ${fileSignatures.length} подписями...`);
@@ -2635,19 +2620,9 @@ export class PortalProcessorService implements IPortalProcessor {
 				}
 			});
 			
-			await this.portalService.request({
-				url: docUrl,
-				method: 'POST',
-				isFormData: true,
-				data: formData,
-				additionalHeaders: {
-					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-					'Referer': `https://v3bl.goszakup.gov.kz${docUrl}`,
-				}
-			});
-			
 			
 			this.logger.log(`[${taskId}] POST запрос отправлен.dataSheetHandle  Статус: ${postResponse.status}, подписей: ${fileSignatures.length} }`);
+			this.logger.log(`[${taskId}] POST запрос отправлен.dataSheetHandle  Статус: ${postResponse.data}, ================================> }`);
 			
 			return {
 				success: postResponse.success,
@@ -2705,21 +2680,7 @@ export class PortalProcessorService implements IPortalProcessor {
 }
 
 
-const te = {
-	"buyLotPointId": "38374438",
-	"hsmApiKey": "AgGCMPGjSqXIKcFKKljtNnwALEcHDp0jDbjXnrRINdgh7C8e6aL28OEIjhl6G0zKsKYEtY2yiLBWoxtvB44qXQLf9hUyMDI2MDcwMTAxMDEwMVoAAwAAAIvBFK4B0vK//DWGrD6/2p1GkyzIKElzKWMNJdmBeMTTlaxHTIKfgT4J6MK1h682QWxaeh74KezO5rVUng==",
-	"offerName": "offer[79996847][38374438][price]",
-	"publicKey": "MIICoDCCAgigAwIBAgIUe5CxLInIvvpr+C7Lge5VxxXka6AwDgYKKoMOAwoBAQIDAgUAMCgxCzAJBgNVBAMTAkNBMQwwCgYDVQQKEwNFRkMxCzAJBgNVBAYTAktaMB4XDTI1MTIxNTEzMTIyOFoXDTI2MTIxNTEzMTcyOFowNjELMAkGA1UEBhMCS1oxDDAKBgNVBAoTA0VDQzEZMBcGA1UEAxMQMTU4MzQwMTRfODczNjYwMzCBrDAjBgkqgw4DCgEEAQIwFgYKKoMOAwoBBAECAQYIKoMOAwoBAwMDgYQABIGARiZWj0zqPGqatHK0UI+N6k2S2o1Pz+HfWk+eyVdJ0YZun+jRkKVN3/RRE/rl8UeCUB+H7aJhezoxTH2MixC48n6Oys5t4hgkctEnOaaOc5ef+p+eTYRbkWGgK/R1A+wIrUEgDuMzpgLXZvS/4aIRqCzFHTa3+SvGGNTauaOLbiWjgakwgaYwCwYDVR0PBAQDAgQwMBMGA1UdJQQMMAoGCCsGAQUFBwMEMB0GA1UdDgQWBBR7kLEsici++mv4LsuB7lXHFeRroDBjBgNVHSMEXDBagBTBgoWpCUaaUanAqAfiMZQKTtxVeaEspCowKDELMAkGA1UEAxMCQ0ExDDAKBgNVBAoTA0VGQzELMAkGA1UEBhMCS1qCFEGChakJRppRqcCoB+IxlApO3FV5MA4GCiqDDgMKAQECAwIFAAOBgQArU3pLRgtoM5xn2ZqROy0BwZSmA7UL80zePAgKJ+1n4LWMoe0V9hDmm6CNfEpy4gqvjelOHPQAbu3VZAQBD7s1eWWpccqhbhzSTkHmXorXrR4W/feSnIbJ3G7bWgWO6tNkAM/bvBiHcOd5+btos/GsbTmkOis0ExIQvrTMFVUR5A==",
-	"version": "1.0.13.2284",
-	"encrInfo": {
-		"status": 1,
-		"minPrice": 32591212.2,
-		"plnSum": 36212458,
-		"salt": "Qe2op+yNtB2d3+GCKVd3bA==",
-		"info": "216194_38374438",
-		"sign": "43lHS3oHoBrhcptvra1mB08mSnu7qeIZWA1H2LzLukc="
-	}
-}
+
 
 
 

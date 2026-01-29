@@ -596,87 +596,97 @@ export class HtmlParserService {
   }
 
   /**
-   * Извлечь все data-url и data-file-identifier из таблицы используя cheerio
-   * Возвращает массив объектов с dataUrl и fileIdentifier
+   * Извлечь расширение из имени файла (например "1.rar" -> ".rar", "Том 7 - ПОС.pdf" -> ".pdf")
    */
-  extractAllSignatureButtonData(html: string): Array<{ dataUrl: string; fileIdentifier: string }> {
-    const results: Array<{ dataUrl: string; fileIdentifier: string }> = [];
+  getExtensionFromFilename(filename: string): string | null {
+    if (!filename || !filename.trim()) return null;
+    const match = filename.trim().match(/\.([a-z0-9]+)$/i);
+    return match ? '.' + match[1].toLowerCase() : null;
+  }
+
+  /**
+   * Извлечь все data-url, data-file-identifier и имя файла из таблицы используя cheerio
+   * Имя файла берётся из текста ссылки <a href*="download_file"> в той же строке таблицы
+   * Возвращает массив объектов с dataUrl, fileIdentifier и filename (для определения расширения)
+   */
+  extractAllSignatureButtonData(html: string): Array<{ dataUrl: string; fileIdentifier: string; filename?: string }> {
+    const results: Array<{ dataUrl: string; fileIdentifier: string; filename?: string }> = [];
     const foundIds = new Set<string>(); // Для избежания дубликатов
     
     try {
       const $ = cheerio.load(html);
-      
-      // Метод 1: Ищем в блоках add_signature_block (приоритетный метод)
-      this.logger.debug('Поиск кнопок в блоках add_signature_block...');
-      $('.add_signature_block').each((i, elem) => {
-        const $block = $(elem);
-        
-        // Ищем кнопки внутри блока с атрибутами data-url и data-file-identifier
-        $block.find('button[data-url][data-file-identifier]').each((j, btn) => {
-          const $btn = $(btn);
-          const dataUrl = $btn.attr('data-url')?.trim();
-          const fileIdentifier = $btn.attr('data-file-identifier')?.trim();
-          
+
+      // Ищем каждую строку таблицы <tr>, в которой есть кнопка подписи и ссылка на download_file
+      $('tr').each((i, row) => {
+        const $row = $(row);
+        const $btn = $row.find('button[data-url][data-file-identifier]').first();
+        if ($btn.length === 0) return;
+
+        const dataUrl = $btn.attr('data-url')?.trim();
+        const fileIdentifier = $btn.attr('data-file-identifier')?.trim();
+        if (!dataUrl || !fileIdentifier || foundIds.has(fileIdentifier)) return;
+
+        // В той же строке ищем ссылку на download_file — её текст это имя файла (1.rar, Том 7 - ПОС.pdf и т.д.)
+        let filename: string | undefined;
+        $row.find('a[href*="download_file"]').each((j, a) => {
+          const text = $(a).text().trim();
+          if (text && !filename) filename = text;
+        });
+
+        foundIds.add(fileIdentifier);
+        results.push({ dataUrl, fileIdentifier, filename });
+        this.logger.debug(`Найдена строка: dataUrl="${dataUrl}", fileIdentifier="${fileIdentifier}", filename="${filename || ''}"`);
+      });
+
+      // Если по строкам не нашли, fallback: только кнопки без имени файла
+      if (results.length === 0) {
+        this.logger.debug('Поиск кнопок в блоках add_signature_block (без имени файла)...');
+        $('.add_signature_block').each((i, elem) => {
+          const $block = $(elem);
+          $block.find('button[data-url][data-file-identifier]').each((j, btn) => {
+            const $btn = $(btn);
+            const dataUrl = $btn.attr('data-url')?.trim();
+            const fileIdentifier = $btn.attr('data-file-identifier')?.trim();
+            if (dataUrl && fileIdentifier && !foundIds.has(fileIdentifier)) {
+              foundIds.add(fileIdentifier);
+              results.push({ dataUrl, fileIdentifier });
+            }
+          });
+        });
+      }
+
+      if (results.length === 0) {
+        $('button.btn-add-signature[data-url][data-file-identifier]').each((i, elem) => {
+          const $button = $(elem);
+          const dataUrl = $button.attr('data-url')?.trim();
+          const fileIdentifier = $button.attr('data-file-identifier')?.trim();
           if (dataUrl && fileIdentifier && !foundIds.has(fileIdentifier)) {
             foundIds.add(fileIdentifier);
-            results.push({ 
-              dataUrl, 
-              fileIdentifier 
-            });
-            this.logger.debug(`Найдена кнопка в блоке add_signature_block: dataUrl="${dataUrl}", fileIdentifier="${fileIdentifier}"`);
+            results.push({ dataUrl, fileIdentifier });
           }
         });
-      });
+      }
 
-      // Метод 2: Ищем все кнопки с классом btn-add-signature (включая те, что могут быть вне блоков)
-      this.logger.debug('Поиск кнопок с классом btn-add-signature...');
-      $('button.btn-add-signature[data-url][data-file-identifier]').each((i, elem) => {
-        const $button = $(elem);
-        const dataUrl = $button.attr('data-url')?.trim();
-        const fileIdentifier = $button.attr('data-file-identifier')?.trim();
-        
-        if (dataUrl && fileIdentifier && !foundIds.has(fileIdentifier)) {
-          foundIds.add(fileIdentifier);
-          results.push({ 
-            dataUrl, 
-            fileIdentifier 
-          });
-          this.logger.debug(`Найдена кнопка btn-add-signature: dataUrl="${dataUrl}", fileIdentifier="${fileIdentifier}"`);
-        }
-      });
-
-      // Метод 3: Ищем кнопки с классом btn-success, которые содержат нужные атрибуты
-      this.logger.debug('Поиск кнопок btn-success с data-url и data-file-identifier...');
-      $('button.btn-success[data-url][data-file-identifier]').each((i, elem) => {
-        const $button = $(elem);
-        const dataUrl = $button.attr('data-url')?.trim();
-        const fileIdentifier = $button.attr('data-file-identifier')?.trim();
-        
-        if (dataUrl && fileIdentifier && !foundIds.has(fileIdentifier)) {
-          foundIds.add(fileIdentifier);
-          results.push({ 
-            dataUrl, 
-            fileIdentifier 
-          });
-          this.logger.debug(`Найдена кнопка btn-success: dataUrl="${dataUrl}", fileIdentifier="${fileIdentifier}"`);
-        }
-      });
-
-      // Метод 4: Если все еще не нашли, ищем любые элементы с data-url и data-file-identifier
       if (results.length === 0) {
-        this.logger.debug('Не найдено через стандартные методы, пробуем искать любые элементы с data-url и data-file-identifier...');
+        $('button.btn-success[data-url][data-file-identifier]').each((i, elem) => {
+          const $button = $(elem);
+          const dataUrl = $button.attr('data-url')?.trim();
+          const fileIdentifier = $button.attr('data-file-identifier')?.trim();
+          if (dataUrl && fileIdentifier && !foundIds.has(fileIdentifier)) {
+            foundIds.add(fileIdentifier);
+            results.push({ dataUrl, fileIdentifier });
+          }
+        });
+      }
+
+      if (results.length === 0) {
         $('[data-url][data-file-identifier]').each((i, elem) => {
           const $elem = $(elem);
           const dataUrl = $elem.attr('data-url')?.trim();
           const fileIdentifier = $elem.attr('data-file-identifier')?.trim();
-          
           if (dataUrl && fileIdentifier && !foundIds.has(fileIdentifier)) {
             foundIds.add(fileIdentifier);
-            results.push({ 
-              dataUrl, 
-              fileIdentifier 
-            });
-            this.logger.debug(`Найден элемент с data-url и data-file-identifier: dataUrl="${dataUrl}", fileIdentifier="${fileIdentifier}"`);
+            results.push({ dataUrl, fileIdentifier });
           }
         });
       }

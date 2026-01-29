@@ -9,9 +9,11 @@ E
 src/app.controller.ts,0/0/00a268f52c1e25866f6b203866e34bd1087aeb91
 `
 0src/modules/application/application.scheduler.ts,f/9/f9b81d7a9c14b4e2c0e7ee537feff3d9a6cd3709
-a
-1src/modules/application/application.controller.ts,d/c/dc5548f260a80d2fc19b4cc273573a983340f12c
 R
 "src/modules/redis/redis.service.ts,4/e/4eec4ca4f4f18aa1702cbcd1e699de9053304e70
 =
 nest-cli.json,f/8/f8b4d91a2772d75f9d2df1baebf3baa395ae9203
+I
+src/monitor-app.module.ts,5/4/54ae8e8f5c61d501fa1c3a68b4ba7e6072266d5a
+P
+ src/modules/auth/auth.service.ts,5/7/57990f5606a543f99d188093ccc24170abc92610
