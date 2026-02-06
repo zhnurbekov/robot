@@ -66,6 +66,8 @@ export class ApplicationService {
 	
 	async submitApplication(applicationNumber: any) {
 		const startTime = Date.now();
+		let applicationId: string | null = null;
+		
 		try {
 			const announcementsId = applicationNumber;
 			if (!announcementsId) {
@@ -83,7 +85,7 @@ export class ApplicationService {
 				throw new Error('Не удалось создать заявку или получить applicationId');
 			}
 			
-			const applicationId = announcement.applicationId;
+			applicationId = announcement.applicationId;
 			
 			// Получаем taskId последовательно (быстрее чем параллельно с другими операциями)
 			const taskId = await this.portalProcessorService.getIdDataSheetHandle(announcementsId, applicationId, '3357');
@@ -111,6 +113,18 @@ export class ApplicationService {
 		} catch (error) {
 			const duration = Date.now() - startTime;
 			this.logger.error(`Ошибка подачи заявки за ${duration}ms: ${(error as Error).message}`);
+			
+			// Если заявка была создана, удаляем её
+			if (applicationId) {
+				try {
+					this.logger.log(`Попытка удаления заявки ${applicationId} из-за ошибки...`);
+					await this.portalService.deleteApplication(applicationId);
+					this.logger.log(`✅ Заявка ${applicationId} успешно удалена`);
+				} catch (deleteError) {
+					this.logger.error(`❌ Не удалось удалить заявку ${applicationId}: ${(deleteError as Error).message}`);
+				}
+			}
+			
 			throw error;
 		}
 	}

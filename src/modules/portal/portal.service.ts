@@ -400,6 +400,52 @@ export class PortalService {
 			redirectedToAuth: result.redirectedToAuth,
 		};
 	}
+
+	/**
+	 * Удалить заявку
+	 * @param {string} applicationId - ID заявки для удаления
+	 * @returns {Promise<any>} Результат удаления
+	 */
+	async deleteApplication(applicationId: string): Promise<any> {
+		this.logger.log(`Удаление заявки ${applicationId}...`);
+		
+		try {
+			const result = await this.request({
+				url: `/ru/myapp`,
+				method: 'GET',
+				params: {
+					org_name: '',
+					trd_method: '',
+					trd_status: '',
+					buy_numb: '',
+					buy_name: '',
+					app_numb: '',
+					app_status: '',
+					start_date: '',
+					end_date: '',
+					prc_status: '',
+					address: '',
+					amount_start: '',
+					amount_end: '',
+					appid: applicationId,
+					btn: 'appdel',
+				},
+				additionalHeaders: {
+					'Referer': `https://v3bl.goszakup.gov.kz/ru/myapp`,
+				}
+			});
+			
+			this.logger.log(`Заявка ${applicationId} удалена. Статус: ${result.status}`);
+			return {
+				success: result.success,
+				status: result.status,
+				data: result.data,
+			};
+		} catch (error) {
+			this.logger.error(`Ошибка удаления заявки ${applicationId}: ${(error as Error).message}`);
+			throw error;
+		}
+	}
 	
 	
 	/**

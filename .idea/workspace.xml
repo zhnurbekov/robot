@@ -2,10 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.module.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -82,7 +79,7 @@
       <workItem from="1770054318713" duration="7374000" />
       <workItem from="1770094697914" duration="528000" />
       <workItem from="1770127135244" duration="3319000" />
-      <workItem from="1770228098745" duration="5723000" />
+      <workItem from="1770228098745" duration="7493000" />
     </task>
     <servers />
   </component>
