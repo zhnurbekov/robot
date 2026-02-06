@@ -8,9 +8,10 @@ import {HttpModule} from '../http/http.module';
 import {NcanodeModule} from '../ncanode/ncanode.module';
 import {AuthModule} from '../auth/auth.module';
 import {RedisModule} from '../redis/redis.module';
+import {FileDownloaderCoreModule} from '../file-downloader/file-downloader-core.module';
 
 @Module({
-	imports: [PortalModule, HttpModule, NcanodeModule, AuthModule, RedisModule, forwardRef(() => ApplicationModule)],
+	imports: [PortalModule, HttpModule, NcanodeModule, AuthModule, RedisModule, FileDownloaderCoreModule, forwardRef(() => ApplicationModule)],
 	providers: [PortalProcessorService, HtmlParserService, AppendixService],
 	exports: [PortalProcessorService, HtmlParserService, AppendixService],
 })

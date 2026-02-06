@@ -9,6 +9,7 @@ import {CryptoSocketService} from '../ncanode/crypto-socket.service';
 import {NcanodeService} from '../ncanode/ncanode.service';
 import {NclayerService} from '../ncanode/nclayer.service';
 import {ConfigService} from '@nestjs/config';
+import {FileDownloaderService} from '../file-downloader/file-downloader.service';
 import { Buffer } from 'buffer';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -34,6 +35,7 @@ export class PortalProcessorService implements IPortalProcessor {
 		private nclayerService: NclayerService,
 		private configService: ConfigService,
 		private authService: AuthService,
+		private fileDownloaderService: FileDownloaderService,
 	) {
 		// Регистрируем callback для обработки результата EncryptOfferPrice
 		this.cryptoSocketService.setEncryptOfferPriceCallback((response, context) => {
@@ -2568,9 +2570,44 @@ export class PortalProcessorService implements IPortalProcessor {
 			// Шаг 3: Скачать и подписать все файлы параллельно
 			const processOneFile = async (fileData: { dataUrl: string; fileIdentifier: string; filename?: string }): Promise<{ fileIdentifier: string; signature: string }> => {
 				const fileTaskId = `${taskId}-${fileData.fileIdentifier}`;
-				this.logger.log(`[${fileTaskId}] Скачивание файла ${fileData.dataUrl}${fileData.filename ? ` (имя: ${fileData.filename})` : ''}...`);
-				const { fileBuffer, ext } = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId, fileData.filename, true);
-				this.logger.log(`[${fileTaskId}] Файл скачан (${fileBuffer.length} байт), расширение: ${ext}. Подписание...`);
+				
+				// Сначала проверяем, есть ли готовая подпись в Redis (FileDownloaderService)
+				if (fileData.filename) {
+					const prefix = parseInt(index, 10);
+					const cachedSignature = await this.fileDownloaderService.getSignature(announceId, docId, prefix, fileData.filename);
+					if (cachedSignature) {
+						this.logger.log(`[${fileTaskId}] Подпись взята из Redis (${fileData.filename})`);
+						return { fileIdentifier: fileData.fileIdentifier, signature: cachedSignature };
+					}
+				}
+
+				// Если подписи нет в Redis, скачиваем и подписываем
+				let fileBuffer: Buffer;
+				let ext: string;
+
+				// Сначала ищем файл в Redis (FileDownloaderService)
+				if (fileData.filename) {
+					const prefix = parseInt(index, 10);
+					const cachedBuffer = await this.fileDownloaderService.getFileBuffer(announceId, docId, prefix, fileData.filename);
+					if (cachedBuffer) {
+						this.logger.log(`[${fileTaskId}] Файл взят из Redis (${fileData.filename}), размер: ${cachedBuffer.length} байт`);
+						fileBuffer = cachedBuffer;
+						const match = fileData.filename.trim().match(/\.([a-z0-9]+)$/i);
+						ext = match ? '.' + match[1].toLowerCase() : '.pdf';
+					} else {
+						this.logger.log(`[${fileTaskId}] Файл не найден в Redis, скачивание ${fileData.dataUrl}...`);
+						const result = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId, fileData.filename, true);
+						fileBuffer = result.fileBuffer;
+						ext = result.ext;
+					}
+				} else {
+					this.logger.log(`[${fileTaskId}] Скачивание файла ${fileData.dataUrl} (имя не указано, пропуск Redis)...`);
+					const result = await this.appendixService.downloadFile(fileData.dataUrl, fileTaskId, fileData.filename, true);
+					fileBuffer = result.fileBuffer;
+					ext = result.ext;
+				}
+
+				this.logger.log(`[${fileTaskId}] Файл готов (${fileBuffer.length} байт), расширение: ${ext}. Подписание...`);
 				const signedDocument = await this.appendixService.signFile(fileBuffer, ext, fileTaskId, fileData.dataUrl, true);
 				this.logger.log(`[${fileTaskId}] Файл подписан`);
 				let signature: string;
@@ -2595,20 +2632,61 @@ export class PortalProcessorService implements IPortalProcessor {
 
 			const fileSignatures = await Promise.all(allFileData.map((fileData) => processOneFile(fileData)));
 			
-			// Шаг 4: Отправить POST запрос со всеми подписями
-			this.logger.log(`[${taskId}] Отправка POST запроса с ${fileSignatures.length} подписями...`);
+			// Шаг 4: Проверяем, есть ли готовый form-data request в Redis
+			let formData: Record<string, any> | null = null;
+			const allFileIdentifiers = fileSignatures.map(fs => fs.fileIdentifier);
 			
-			const formData: Record<string, any> = {
-				'send': 'Сохранить',
-				'sign_files': '',
-			};
+			// Пробуем получить готовый form-data из Redis (если все fileIdentifier совпадают)
+			if (allFileData.length > 0 && allFileData.every(fd => fd.filename)) {
+				// Формируем объединенный form-data из подписей в Redis
+				const combinedFormData: Record<string, any> = {
+					'send': 'Сохранить',
+					'sign_files': '',
+				};
+				
+				let allSignaturesFound = true;
+				for (const fileSig of fileSignatures) {
+					// Ищем подпись в Redis по fileIdentifier
+					const fileData = allFileData.find(fd => fd.fileIdentifier === fileSig.fileIdentifier);
+					if (fileData?.filename) {
+						const prefix = parseInt(index, 10);
+						const cachedSignature = await this.fileDownloaderService.getSignature(announceId, docId, prefix, fileData.filename);
+						if (cachedSignature) {
+							combinedFormData[`signature[${fileSig.fileIdentifier}]`] = cachedSignature;
+						} else {
+							allSignaturesFound = false;
+							break;
+						}
+					} else {
+						allSignaturesFound = false;
+						break;
+					}
+				}
+				
+				if (allSignaturesFound && Object.keys(combinedFormData).length > 2) {
+					formData = combinedFormData;
+					this.logger.log(`[${taskId}] Используется готовый form-data из Redis для всех файлов`);
+				}
+			}
 			
-			for (const fileSig of fileSignatures) {
-				formData[`signature[${fileSig.fileIdentifier}]`] = fileSig.signature;
+			// Если готового form-data нет, формируем из подписей
+			if (!formData) {
+				this.logger.log(`[${taskId}] Формирование form-data из подписей файлов...`);
+				formData = {
+					'send': 'Сохранить',
+					'sign_files': '',
+				};
+				
+				for (const fileSig of fileSignatures) {
+					formData[`signature[${fileSig.fileIdentifier}]`] = fileSig.signature;
+				}
 			}
 			
 			
-			console.log(formData, 'formData')
+			// Шаг 5: Отправить POST запрос со всеми подписями
+			this.logger.log(`[${taskId}] Отправка POST запроса с ${fileSignatures.length} 16152136`);
+			this.logger.log(`[${taskId}] Отправка POST запроса с ${JSON.stringify(fileSignatures)} подписями...`);
+
 			const postResponse = await this.portalService.request({
 				url: docUrl,
 				method: 'POST',
