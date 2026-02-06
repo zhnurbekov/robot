@@ -1978,7 +1978,7 @@ export class PortalProcessorService implements IPortalProcessor {
 			};
 		} catch (error) {
 			this.logger.error(`[${taskId}] Ошибка: ${(error as Error).message}`);
-			
+			throw error;
 		}
 	}
 	
