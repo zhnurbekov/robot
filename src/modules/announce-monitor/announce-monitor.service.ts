@@ -85,7 +85,7 @@ export class AnnounceMonitorService {
       this.logger.log(`[${taskId}] Диагностика ответа: длина=${html.length}, table-bordered=${hasTableBordered}, loginPage=${hasLoginPage}, favoritesContent=${hasFavoritesContent}`);
       if (!hasTableBordered) {
         const preview = html.length > 500 ? html.substring(0, 500) + '...' : html;
-        this.logger.warn(`[${taskId}] Таблица не найдена. Превью ответа (первые 500 символов):\n${preview}`);
+        this.logger.warn(`[${taskId}] Таблица не найдена. Превью ответа (первые 500 символов):\n${html}`);
       }
 
       const favorites = this.parseFavoritesTable(html);
