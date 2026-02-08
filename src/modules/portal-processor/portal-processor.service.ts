@@ -2207,7 +2207,7 @@ export class PortalProcessorService implements IPortalProcessor {
 			const inputY = parseInt(this.configService.get<string>('INPUT_Y', '322'), 10);
 			const buttonX = parseInt(this.configService.get<string>('BUTTON_X', '828'), 10);
 			const buttonY = parseInt(this.configService.get<string>('BUTTON_Y', '432'), 10);
-			const robotogoUrl = this.configService.get<string>('ROBOTOGO_URL', 'http://localhost:3001/api/robotogo/fill-and-click');
+			const robotogoUrl = this.configService.get<string>('ROBOTOGO_URL', 'http://localhost:3003/api/robotogo/fill-and-click');
 			
 			const requestBody = {
 				input_x: inputX,
