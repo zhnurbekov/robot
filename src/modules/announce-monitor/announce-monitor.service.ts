@@ -77,6 +77,17 @@ export class AnnounceMonitorService {
       }
 
       const html = response.data as string;
+
+      // Диагностика ответа: проверяем, что пришло — страница избранного или авторизации
+      const hasTableBordered = html.includes('table-bordered');
+      const hasLoginPage = html.includes('<title>Авторизация</title>') || html.includes('user/login') || html.includes('window.current_method = "login"');
+      const hasFavoritesContent = html.includes('Избранное') && html.includes('tr-favorite');
+      this.logger.log(`[${taskId}] Диагностика ответа: длина=${html.length}, table-bordered=${hasTableBordered}, loginPage=${hasLoginPage}, favoritesContent=${hasFavoritesContent}`);
+      if (!hasTableBordered) {
+        const preview = html.length > 500 ? html.substring(0, 500) + '...' : html;
+        this.logger.warn(`[${taskId}] Таблица не найдена. Превью ответа (первые 500 символов):\n${preview}`);
+      }
+
       const favorites = this.parseFavoritesTable(html);
 
       this.logger.log(`[${taskId}] Получено избранных объявлений: ${favorites.length}`);
