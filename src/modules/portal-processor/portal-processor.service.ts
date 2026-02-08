@@ -1961,9 +1961,31 @@ export class PortalProcessorService implements IPortalProcessor {
 				'EncryptOfferPrice',
 				encryptParams,
 				'EFCAPI',
-			);
+			).catch((err) => {
+				this.logger.error(`[${taskId}] EncryptOfferPrice ошибка (процесс продолжает): ${(err as Error).message}`);
+				// Не выбрасываем — предотвращаем падение процесса при таймауте
+			});
 			
-			await this.setData(minPrice + 500000);
+			// setData — ввод данных в модальное окно (retry при ошибке)
+			const setDataMaxRetries = 2;
+			let setDataError: Error | null = null;
+			for (let attempt = 1; attempt <= setDataMaxRetries; attempt++) {
+				try {
+					this.logger.log(`[${taskId}] setData (попытка ${attempt}/${setDataMaxRetries})...`);
+					await this.setData(minPrice + 500000);
+					setDataError = null;
+					break;
+				} catch (err) {
+					setDataError = err instanceof Error ? err : new Error(String(err));
+					this.logger.error(`[${taskId}] Ошибка setData (попытка ${attempt}/${setDataMaxRetries}): ${setDataError.message}`);
+					if (attempt < setDataMaxRetries) {
+						this.logger.log(`[${taskId}] Повторный вызов setData через 5 сек...`);
+						await new Promise((r) => setTimeout(r, 5000));
+					} else {
+						this.logger.warn(`[${taskId}] setData не удался после ${setDataMaxRetries} попыток. Процесс продолжает.`);
+					}
+				}
+			}
 			
 			this.logger.log(`[${taskId}] Запрос EncryptOfferPrice отправлен, ожидаем обработку результата в callback...`);
 			

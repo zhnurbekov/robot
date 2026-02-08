@@ -102,10 +102,16 @@ export class ApplicationService {
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '1'),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '2'),
 			]);
-			
+
 			
 			// Устанавливаем цену
-			await this.portalProcessorService.setPrice(announcementsId, applicationId, '3353');
+			try {
+				await this.portalProcessorService.setPrice(announcementsId, applicationId, '3353');
+			} catch (error) {
+				this.logger.error(`[${applicationId}] Ошибка setPrice: ${(error as Error).message}`);
+				this.logger.warn(`[${applicationId}] Процесс продолжает работу (ошибка залогирована).`);
+				// Не выбрасываем — процесс не завершается
+			}
 			
 			const duration = Date.now() - startTime;
 			this.logger.log(`[${applicationId}] ✅ Все операции завершены за ${duration}ms`);

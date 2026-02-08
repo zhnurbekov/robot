@@ -112,6 +112,7 @@ export class AnnounceMonitorService {
     
     if (table.length === 0) {
       this.logger.warn('Таблица избранного не найдена на странице');
+      this.logger.warn(JSON.stringify(html));
       return favorites;
     }
 
