@@ -8,6 +8,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "cross-env NODE_OPTIONS='-r ./src/polyfills.js' nest start",
     "start:dev": "cross-env NODE_OPTIONS='-r ./src/polyfills.js' nest start --watch --preserveWatchOutput",
+    "start:dev:win": "set NODE_OPTIONS=-r ./src/polyfills.js && nest start --watch --preserveWatchOutput",
     "start:debug": "cross-env NODE_OPTIONS='-r ./src/polyfills.js' nest start --debug --watch --preserveWatchOutput",
     "start:prod": "cross-env NODE_OPTIONS='-r ./dist/polyfills.js' node dist/main",
     "monitor:start": "cross-env NODE_OPTIONS='-r ./src/polyfills.js' ts-node -r tsconfig-paths/register src/main-monitor.ts",

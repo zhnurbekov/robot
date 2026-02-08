@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/polyfills.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/polyfills.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,6 +21,14 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
   </component>
   <component name="ProjectId" id="2sJIbLYXdQRnaypxM36QFNoPHRl" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
@@ -78,7 +88,7 @@
       <workItem from="1770054318713" duration="7374000" />
       <workItem from="1770094697914" duration="528000" />
       <workItem from="1770127135244" duration="3319000" />
-      <workItem from="1770228098745" duration="12890000" />
+      <workItem from="1770228098745" duration="14556000" />
     </task>
     <servers />
   </component>

@@ -4,13 +4,13 @@
 // Полифилл для ReadableStream из web-streams-polyfill
 if (typeof globalThis.ReadableStream === 'undefined') {
   try {
-    const { ReadableStream } = require('web-streams-polyfill/ponyfill/es2018');
-    globalThis.ReadableStream = ReadableStream;
+    var streams = require('web-streams-polyfill/ponyfill/es2018');
+    globalThis.ReadableStream = streams.ReadableStream;
   } catch (error) {
     // Fallback на stream/web если доступен
     try {
-      const { ReadableStream } = require('stream/web');
-      globalThis.ReadableStream = ReadableStream;
+      var streamWeb = require('stream/web');
+      globalThis.ReadableStream = streamWeb.ReadableStream;
     } catch (e) {
       console.warn('Не удалось загрузить ReadableStream:', error);
     }
@@ -30,8 +30,8 @@ if (typeof globalThis.Blob === 'undefined') {
   } catch (error) {
     // Используем node-fetch Blob если доступен, иначе просто предупреждение
     try {
-      const { Blob } = require('node-fetch');
-      globalThis.Blob = Blob;
+      var nodeFetch = require('node-fetch');
+      globalThis.Blob = nodeFetch.Blob;
     } catch (e) {
       // Если ничего не помогло, создаем минимальный полифилл
       // Но лучше установить node-fetch или использовать версию Node.js с Blob
