@@ -86,22 +86,19 @@ export class ApplicationService {
 			}
 			
 			applicationId = announcement.applicationId;
-
-			// ОПТИМИЗАЦИЯ: получаем taskId и обработчики без taskId параллельно, затем обработчики с taskId
-			const [taskId, , , ,] = await Promise.all([
-				this.portalProcessorService.getIdDataSheetHandle(announcementsId, applicationId, '3357'),
+			
+			// Получаем taskId последовательно (быстрее чем параллельно с другими операциями)
+			const taskId = await this.portalProcessorService.getIdDataSheetHandle(announcementsId, applicationId, '3357');
+			
+			// ОПТИМИЗАЦИЯ: Запускаем все независимые операции параллельно (но без getIdDataSheetHandle)
+			// Это уменьшает нагрузку на портал и ускоряет выполнение
+			await Promise.all([
 				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '1356'),
+				this.portalProcessorService.setupBeneficialOwnershipInformation(announcementsId, applicationId, '3361', taskId),
 				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '3352'),
 				this.portalProcessorService.copyingQualificationInformation(announcementsId, applicationId, '3362'),
-				this.portalProcessorService.obtainPermits(announcementsId, applicationId, '1351'),
-			]);
-			if (taskId == null) {
-				throw new Error('Не удалось получить taskId (getIdDataSheetHandle)');
-			}
-
-			await Promise.all([
-				this.portalProcessorService.setupBeneficialOwnershipInformation(announcementsId, applicationId, '3361', taskId),
 				this.portalProcessorService.addingBidSecurity(announcementsId, applicationId, '3353', taskId),
+				this.portalProcessorService.obtainPermits(announcementsId, applicationId, '1351'),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '1'),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '2'),
 			]);

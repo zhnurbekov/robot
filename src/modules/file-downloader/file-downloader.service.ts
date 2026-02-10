@@ -118,7 +118,7 @@ export class FileDownloaderService {
       }
 
       const html = typeof response.data === 'string' ? response.data : String(response.data);
-      return this.parseFilesFromHtml(html);
+      return this.parseFilesFromHtml(html, documentTypeId);
     } catch (error) {
       this.logger.error(`[file-downloader] Ошибка получения списка файлов: ${(error as Error).message}`);
       return [];
@@ -126,54 +126,67 @@ export class FileDownloaderService {
   }
 
   /**
-   * Парсинг HTML для извлечения ссылок на файлы
-   * Разделяет на основные (prefix=1) и дополнительные (prefix=2) файлы
+   * Парсинг HTML для извлечения ссылок на файлы.
+   * Логика префикса (1 = основной, 2 = дополнительный) только для documentTypeId 3357.
+   * Для остальных видов документов (например 1356) все файлы идут с prefix=1.
    */
-  parseFilesFromHtml(html: string): FileInfo[] {
+  parseFilesFromHtml(html: string, documentTypeId?: string): FileInfo[] {
     const files: FileInfo[] = [];
+    const usePrefixLogic = documentTypeId === '3357';
 
-    // Разделяем HTML на две части: до и после "Дополнительные файл"
-    const additionalFilesIndex = html.indexOf('Дополнительные файл');
-    
-    let mainTableHtml = html;
-    let additionalTableHtml = '';
-    
-    if (additionalFilesIndex !== -1) {
-      mainTableHtml = html.substring(0, additionalFilesIndex);
-      additionalTableHtml = html.substring(additionalFilesIndex);
+    if (usePrefixLogic) {
+      // Только для 3357: разделяем на основные и дополнительные файлы
+      const additionalFilesIndex = html.indexOf('Дополнительные файл');
+      let mainTableHtml = html;
+      let additionalTableHtml = '';
+
+      if (additionalFilesIndex !== -1) {
+        mainTableHtml = html.substring(0, additionalFilesIndex);
+        additionalTableHtml = html.substring(additionalFilesIndex);
+      }
+
+      const mainFiles = this.parseTableFiles(mainTableHtml, 1, '3357');
+      files.push(...mainFiles);
+
+      if (additionalTableHtml) {
+        const additionalFiles = this.parseTableFiles(additionalTableHtml, 2, '3357');
+        files.push(...additionalFiles);
+      }
+
+      this.logger.log(`[file-downloader] Найдено ${mainFiles.length} основных и ${files.length - mainFiles.length} дополнительных файлов (3357)`);
+    } else {
+      // Для 1356 и остальных: одна таблица, все файлы с prefix=1 (формат колонок может отличаться)
+      const allFiles = this.parseTableFiles(html, 1, documentTypeId);
+      files.push(...allFiles);
+      this.logger.log(`[file-downloader] Найдено ${allFiles.length} файлов (documentTypeId=${documentTypeId || '?'})`);
     }
 
-    // Парсим основные файлы (prefix = 1)
-    const mainFiles = this.parseTableFiles(mainTableHtml, 1);
-    files.push(...mainFiles);
-
-    // Парсим дополнительные файлы (prefix = 2)
-    if (additionalTableHtml) {
-      const additionalFiles = this.parseTableFiles(additionalTableHtml, 2);
-      files.push(...additionalFiles);
-    }
-
-    this.logger.log(`[file-downloader] Найдено ${mainFiles.length} основных и ${files.length - mainFiles.length} дополнительных файлов`);
     return files;
   }
 
   /**
-   * Парсинг файлов из таблицы HTML
+   * Парсинг файлов из таблицы HTML.
+   * Для 3357: колонки №, Документ, Автор, Организация, Дата, Подпись (file в cells[1]).
+   * Для 1356: колонки Документ, Автор, Организация, Дата создания, Подпись (file в cells[0]).
    */
-  private parseTableFiles(html: string, prefix: number): FileInfo[] {
+  private parseTableFiles(html: string, prefix: number, documentTypeId?: string): FileInfo[] {
     const files: FileInfo[] = [];
+    const is1356 = documentTypeId === '1356';
+    const fileCellIndex = is1356 ? 0 : 1;
+    const authorIndex = is1356 ? 1 : 2;
+    const orgIndex = is1356 ? 2 : 3;
+    const dateIndex = is1356 ? 3 : 4;
+    const signCellIndex = is1356 ? 4 : 5;
+    const minCells = is1356 ? 5 : 5;
 
-    // Ищем все строки таблицы с файлами
     const rowPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
     let rowMatch;
 
     while ((rowMatch = rowPattern.exec(html)) !== null) {
       const rowHtml = rowMatch[1];
 
-      // Пропускаем заголовки таблицы
       if (rowHtml.includes('<th')) continue;
 
-      // Извлекаем ячейки
       const cellPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
       const cells: string[] = [];
       let cellMatch;
@@ -182,47 +195,34 @@ export class FileDownloaderService {
         cells.push(cellMatch[1].trim());
       }
 
-      // Нужно минимум 5 ячеек (номер лота, документ, автор, организация, дата)
-      if (cells.length < 5) continue;
+      if (cells.length < minCells) continue;
 
-      // Извлекаем номер лота
-      const lotNumber = this.stripHtml(cells[0]);
-
-      // Извлекаем ссылку на файл и имя файла
-      const fileCell = cells[1];
+      const fileCell = cells[fileCellIndex];
       const fileLinkMatch = fileCell.match(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
-      
+
       if (!fileLinkMatch) continue;
 
       const downloadUrl = fileLinkMatch[1];
       const fileName = fileLinkMatch[2].trim();
 
-      // Извлекаем ID файла из URL
-      // URL вида: https://v3bl.goszakup.gov.kz/files/download_file/292795312/
       const fileIdMatch = downloadUrl.match(/download_file\/(\d+)/);
       if (!fileIdMatch) continue;
 
       const fileId = fileIdMatch[1];
 
-      // Извлекаем автора
-      const author = this.stripHtml(cells[2]);
+      const lotNumber = is1356 ? '' : this.stripHtml(cells[0]);
+      const author = this.stripHtml(cells[authorIndex]);
+      const organization = this.stripHtml(cells[orgIndex]);
+      const createdAt = this.stripHtml(cells[dateIndex]);
 
-      // Извлекаем организацию
-      const organization = this.stripHtml(cells[3]);
-
-      // Извлекаем дату
-      const createdAt = this.stripHtml(cells[4]);
-
-      // Извлекаем ссылку на подпись (если есть)
       let signatureUrl: string | undefined;
-      if (cells[5]) {
-        const signMatch = cells[5].match(/<a\s+href="([^"]+)"[^>]*>/i);
+      if (cells[signCellIndex]) {
+        const signMatch = cells[signCellIndex].match(/<a\s+href="([^"]+)"[^>]*>/i);
         if (signMatch) {
           signatureUrl = signMatch[1];
         }
       }
 
-      // Пытаемся извлечь fileIdentifier из кнопки подписи в строке
       let fileIdentifier: string | undefined;
       const buttonMatch = rowHtml.match(/<button[^>]*data-file-identifier=["'](\d+)["'][^>]*>/i);
       if (buttonMatch) {
@@ -444,15 +444,17 @@ export class FileDownloaderService {
     documentTypeId: string,
   ): Promise<DownloadedFile | null> {
     const { fileId, fileName, downloadUrl, prefix } = fileInfo;
-    const redisKey = this.generateFileKey(announceId, documentTypeId, prefix, fileName);
+    // Для документов кроме 3357 используем prefix=1 по умолчанию
+    const effectivePrefix = documentTypeId === '3357' ? prefix : 1;
+    const redisKey = this.generateFileKey(announceId, documentTypeId, effectivePrefix, fileName);
 
     // Проверяем, есть ли файл в кэше
     const existingContent = await this.redisService.get(redisKey);
     if (existingContent) {
-      this.logger.log(`[file-downloader] Файл ${fileName} (prefix=${prefix}) уже в кэше`);
+      this.logger.log(`[file-downloader] Файл ${fileName} (prefix=${effectivePrefix}) уже в кэше`);
       
       // Возвращаем существующий файл из кэша
-      const metaKey = this.generateMetaKey(announceId, documentTypeId, prefix, fileName);
+      const metaKey = this.generateMetaKey(announceId, documentTypeId, effectivePrefix, fileName);
       const metaStr = await this.redisService.get(metaKey);
       if (metaStr) {
         try {
@@ -464,7 +466,7 @@ export class FileDownloaderService {
             contentType: meta.contentType,
             size: meta.size,
             downloadedAt: meta.downloadedAt,
-            prefix,
+            prefix: effectivePrefix,
             redisKey,
           };
         } catch {
@@ -473,7 +475,7 @@ export class FileDownloaderService {
       }
     }
 
-    this.logger.log(`[file-downloader] Скачивание файла ${fileId}: ${fileName} (prefix=${prefix})`);
+    this.logger.log(`[file-downloader] Скачивание файла ${fileId}: ${fileName} (prefix=${effectivePrefix})`);
 
     try {
       const response = await this.httpService.get(downloadUrl, {
@@ -506,13 +508,13 @@ export class FileDownloaderService {
         contentType,
         size: buffer.length,
         downloadedAt: new Date().toISOString(),
-        prefix,
+        prefix: effectivePrefix,
         redisKey,
       };
 
       // Сохраняем файл и подпись в Redis
       await this.saveFileToCache(downloadedFile, fileInfo, announceId, documentTypeId);
-      await this.saveSignature(announceId, documentTypeId, prefix, fileName, signature);
+      await this.saveSignature(announceId, documentTypeId, effectivePrefix, fileName, signature);
 
       // Если есть fileIdentifier, формируем готовый form-data request
       if (fileInfo.fileIdentifier) {
@@ -832,10 +834,10 @@ export class FileDownloaderService {
         }
 
         // Проверяем, не обрабатывается ли объявление через API start
-        if (await this.isApplicationProcessing(lot.announceId)) {
-          this.logger.log(`[${taskId}] Объявление ${lot.announceId} обрабатывается через API start, пропуск`);
-          continue;
-        }
+        // if (await this.isApplicationProcessing(lot.announceId)) {
+        //   this.logger.log(`[${taskId}] Объявление ${lot.announceId} обрабатывается через API start, пропуск`);
+        //   continue;
+        // }
 
         // Скачиваем документы для видов 1356 и 3357
         const documentTypeIdsToDownload = ['1356', '3357'];
