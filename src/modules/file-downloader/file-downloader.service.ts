@@ -837,11 +837,11 @@ export class FileDownloaderService {
           continue;
         }
 
-        // Получаем номера видов документов для объявления (напр. 3357 — из actionAjaxModalShowFiles/.../3357)
-        const documentTypeId ='3357';
-
-
+        // Скачиваем документы для видов 1356 и 3357
+        const documentTypeIdsToDownload = ['1356', '3357'];
         let downloadedForAnnounce = 0;
+
+        for (const documentTypeId of documentTypeIdsToDownload) {
           this.logger.log(`[${taskId}] Обработка объявления ${lot.announceId}, номер вида документов: ${documentTypeId}`);
 
           const files = await this.downloadAllFiles(lot.announceId, documentTypeId);
@@ -849,6 +849,7 @@ export class FileDownloaderService {
           totalDownloaded += files.length;
 
           await this.delay(1000);
+        }
 
         // Отмечаем объявление как обработанное только если хотя бы один файл скачан и сохранён
         if (downloadedForAnnounce > 0) {
