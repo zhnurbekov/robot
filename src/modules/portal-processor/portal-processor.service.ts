@@ -23,7 +23,11 @@ import axios from 'axios';
 @Injectable()
 export class PortalProcessorService implements IPortalProcessor {
 	private readonly logger = new Logger(PortalProcessorService.name);
-	
+	/** Задержка между повторными попытками запросов (мс), для ускорения подачи заявки */
+	private readonly applicationRetryDelayMs: number;
+	/** Задержка перед повторным вызовом setData при ошибке (мс) */
+	private readonly applicationSetDataRetryDelayMs: number;
+
 	constructor(
 		private portalService: PortalService,
 		private htmlParserService: HtmlParserService,
@@ -37,6 +41,8 @@ export class PortalProcessorService implements IPortalProcessor {
 		private authService: AuthService,
 		private fileDownloaderService: FileDownloaderService,
 	) {
+		this.applicationRetryDelayMs = Math.max(200, parseInt(this.configService.get<string>('APPLICATION_RETRY_DELAY_MS', '500'), 10));
+		this.applicationSetDataRetryDelayMs = Math.max(1000, parseInt(this.configService.get<string>('APPLICATION_SETDATA_RETRY_DELAY_MS', '2000'), 10));
 		// Регистрируем callback для обработки результата EncryptOfferPrice
 		this.cryptoSocketService.setEncryptOfferPriceCallback((response, context) => {
 			return this.handleEncryptOfferPriceResult(response, context);
@@ -49,29 +55,29 @@ export class PortalProcessorService implements IPortalProcessor {
 	 * @param requestFn - Функция для выполнения запроса
 	 * @param taskId - ID задачи для логирования
 	 * @param maxRetries - Максимальное количество попыток (по умолчанию 3)
-	 * @param retryDelay - Задержка между попытками в мс (по умолчанию 1000)
+	 * @param retryDelay - Задержка между попытками в мс (если не задана — из APPLICATION_RETRY_DELAY_MS, по умолч. 500)
 	 * @returns Результат запроса
 	 */
 	private async retryRequest<T>(
 		requestFn: () => Promise<T>,
 		taskId: string,
 		maxRetries: number = 3,
-		retryDelay: number = 1000
+		retryDelay?: number
 	): Promise<T> {
+		let delayMs = retryDelay ?? this.applicationRetryDelayMs;
 		let lastError: Error | null = null;
-		
+
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			try {
 				return await requestFn();
 			} catch (error) {
 				lastError = error as Error;
 				this.logger.warn(`[${taskId}] Попытка ${attempt}/${maxRetries} не удалась: ${lastError.message}`);
-				
+
 				if (attempt < maxRetries) {
-					this.logger.log(`[${taskId}] Повторная попытка через ${retryDelay}мс...`);
-					await new Promise(resolve => setTimeout(resolve, retryDelay));
-					// Увеличиваем задержку для следующей попытки (exponential backoff)
-					retryDelay *= 1.5;
+					this.logger.log(`[${taskId}] Повторная попытка через ${delayMs}мс...`);
+					await new Promise(resolve => setTimeout(resolve, delayMs));
+					delayMs = Math.round(delayMs * 1.5);
 				}
 			}
 		}
@@ -127,8 +133,7 @@ export class PortalProcessorService implements IPortalProcessor {
 						return result;
 					},
 					`${taskId}-auth`,
-					3,
-					1000
+					3
 				);
 				
 				// Повторяем запрос после авторизации с повторными попытками
@@ -158,8 +163,7 @@ export class PortalProcessorService implements IPortalProcessor {
 						return {response: resp, html: retryHtml};
 					},
 					`${taskId}-retry`,
-					3,
-					1000
+					3
 				);
 				
 				this.logger.log(`[${taskId}] Переавторизация успешна, используем новый HTML`);
@@ -367,8 +371,7 @@ export class PortalProcessorService implements IPortalProcessor {
 					return resp;
 				},
 				taskId,
-				3,
-				1000
+				3
 			);
 			
 			const html = response.data as string;
@@ -430,38 +433,6 @@ export class PortalProcessorService implements IPortalProcessor {
 			});
 			
 			// Проверяем, не является ли ответ страницей авторизации
-			let responseData = response.data;
-			if (response.data && typeof response.data === 'string' &&
-				(response.data.includes('<title>Авторизация</title>') ||
-					response.data.includes('/user/login') ||
-					response.redirectedToAuth)) {
-				this.logger.warn(`Получена страница авторизации после POST запроса. Выполняем переавторизацию...`);
-				await this.authService.login(true);
-				
-				// Повторяем POST запрос после авторизации
-				const retryResponse = await this.portalService.request({
-					url: `/ru/application/ajax_create_application/${announceId}`,
-					method: 'POST',
-					isFormData: false,
-					data: requestData,
-					additionalHeaders: {
-						'Accept': 'application/json, text/javascript, */*; q=0.01',
-						'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-						'Referer': `https://v3bl.goszakup.gov.kz/ru/application/create/${announceId}`,
-						'X-Requested-With': 'XMLHttpRequest',
-					}
-				});
-				
-				if (retryResponse.data && typeof retryResponse.data === 'string' &&
-					(retryResponse.data.includes('<title>Авторизация</title>') ||
-						retryResponse.data.includes('/user/login') ||
-						retryResponse.redirectedToAuth)) {
-					throw new Error('После переавторизации все еще получаем страницу авторизации');
-				}
-				
-				responseData = retryResponse.data;
-			}
-			
 			this.logger.log(JSON.stringify(response),
 				'response')
 			
@@ -475,29 +446,6 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			// Проверяем, не является ли ответ страницей авторизации
 			let responseGetIdData = responseGetId.data;
-			if (responseGetId.data && typeof responseGetId.data === 'string' &&
-				(responseGetId.data.includes('<title>Авторизация</title>') ||
-					responseGetId.data.includes('/user/login') ||
-					responseGetId.redirectedToAuth)) {
-				this.logger.warn(`Получена страница авторизации после GET запроса. Выполняем переавторизацию...`);
-				await this.authService.login(true);
-				
-				// Повторяем GET запрос после авторизации
-				const retryGetResponse = await this.portalService.request({
-					url: `/ru/application/ajax_create_application/${announceId}`,
-					method: 'GET',
-				});
-				
-				if (retryGetResponse.data && typeof retryGetResponse.data === 'string' &&
-					(retryGetResponse.data.includes('<title>Авторизация</title>') ||
-						retryGetResponse.data.includes('/user/login') ||
-						retryGetResponse.redirectedToAuth)) {
-					throw new Error('После переавторизации все еще получаем страницу авторизации');
-				}
-				
-				responseGetIdData = retryGetResponse.data;
-			}
-			
 			
 			this.logger.log(JSON.stringify(responseGetId),
 				'responseGetId')
@@ -1533,8 +1481,7 @@ export class PortalProcessorService implements IPortalProcessor {
 						});
 					},
 					taskId,
-					3,
-					1000
+					3
 				);
 				
 				if (!priceResponse.success || !priceResponse.data || typeof priceResponse.data !== 'string') {
@@ -1979,8 +1926,8 @@ export class PortalProcessorService implements IPortalProcessor {
 					setDataError = err instanceof Error ? err : new Error(String(err));
 					this.logger.error(`[${taskId}] Ошибка setData (попытка ${attempt}/${setDataMaxRetries}): ${setDataError.message}`);
 					if (attempt < setDataMaxRetries) {
-						this.logger.log(`[${taskId}] Повторный вызов setData через 5 сек...`);
-						await new Promise((r) => setTimeout(r, 5000));
+						this.logger.log(`[${taskId}] Повторный вызов setData через ${this.applicationSetDataRetryDelayMs}мс...`);
+						await new Promise((r) => setTimeout(r, this.applicationSetDataRetryDelayMs));
 					} else {
 						this.logger.warn(`[${taskId}] setData не удался после ${setDataMaxRetries} попыток. Процесс продолжает.`);
 					}
@@ -2260,8 +2207,7 @@ export class PortalProcessorService implements IPortalProcessor {
 					return resp;
 				},
 				taskId,
-				3,
-				1000
+				3
 			);
 			
 			let html = response.data as string;

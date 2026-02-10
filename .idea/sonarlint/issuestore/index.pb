@@ -19,8 +19,6 @@ P
  src/modules/auth/auth.service.ts,5/7/57990f5606a543f99d188093ccc24170abc92610
 ]
 -src/modules/application/application.module.ts,a/8/a8b70bd8541614120093efc79f9aeda12fb6f3c9
-<
-.env.example,d/4/d4dae00d11854b35292c2b8a30515a9a0aa2d871
 G
 WINDOWS_SERVER_SETUP.md,b/0/b09a01e06e0105302d88745e63e3924652171e77
 H
@@ -31,3 +29,13 @@ a
 1src/modules/application/application.controller.ts,d/c/dc5548f260a80d2fc19b4cc273573a983340f12c
 Q
 !src/file-downloader-app.module.ts,0/5/058e225779d2599a831412690bca2239b859797e
+`
+0src/modules/cabinet-cron/cabinet-cron.service.ts,f/2/f24bdcf7ba3a808a076ac397d83f6469f3d02aef
+C
+src/main-monitor.ts,f/2/f2ce17e1dd7e2df0221c049ce0ac2cd50baeb8cc
+e
+5src/modules/file-downloader/file-downloader.module.ts,7/c/7c325d9d825a3396c2d22ccae0813c7bf9af5cae
+N
+src/cabinet-cron-app.module.ts,3/c/3c17d3e5662d28859bbdb76d565cc9cf62bc25d2
+X
+(src/modules/telegram/telegram.service.ts,d/c/dcd8a1d32c34666644e57e10bd8ad82aa2c5a63f

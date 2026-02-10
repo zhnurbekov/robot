@@ -2,7 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/announce-monitor/announce-monitor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/announce-monitor/announce-monitor.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/application/application.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/application/application.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -86,7 +92,8 @@
       <workItem from="1770054318713" duration="7374000" />
       <workItem from="1770094697914" duration="528000" />
       <workItem from="1770127135244" duration="3319000" />
-      <workItem from="1770228098745" duration="15148000" />
+      <workItem from="1770228098745" duration="17595000" />
+      <workItem from="1770735064116" duration="5744000" />
     </task>
     <servers />
   </component>

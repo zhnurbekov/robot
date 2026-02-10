@@ -60,23 +60,63 @@ export class AnnounceMonitorService {
     this.logger.log(`[${taskId}] Получение списка избранных объявлений...`);
 
     try {
-      // Проверяем авторизацию
+      // Проверяем авторизацию (быстрая локальная проверка)
       await this.authService.login();
 
+      const makeFavoritesRequest = async () => {
+        return this.portalService.request({
+          url: '/ru/favorites',
+          method: 'GET',
+          additionalHeaders: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        });
+      };
+
       // Отправляем запрос на страницу избранного
-      const response = await this.portalService.request({
-        url: '/ru/favorites',
-        method: 'GET',
-        additionalHeaders: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      });
+      let response = await makeFavoritesRequest();
+
+      // Если получили страницу авторизации / редирект на логин — выполняем переавторизацию и повторяем запрос
+      let html = typeof response.data === 'string' ? response.data : '';
+      let isLoginPage =
+        response.redirectedToAuth ||
+        (html &&
+          (html.includes('<title>Авторизация</title>') ||
+            html.includes('/user/login') ||
+            html.includes('window.current_method = \"login\"')));
+
+      if (isLoginPage) {
+        this.logger.warn(
+          `[${taskId}] Получена страница авторизации вместо избранного. Выполняем переавторизацию и повторный запрос...`,
+        );
+
+        // Форсируем новую авторизацию
+        await this.authService.login(true);
+
+        // Повторный запрос после авторизации
+        response = await makeFavoritesRequest();
+        html = typeof response.data === 'string' ? response.data : '';
+        isLoginPage =
+          response.redirectedToAuth ||
+          (html &&
+            (html.includes('<title>Авторизация</title>') ||
+              html.includes('/user/login') ||
+              html.includes('window.current_method = \"login\"')));
+
+        if (isLoginPage) {
+          this.logger.error(
+            `[${taskId}] После повторной авторизации по-прежнему получаем страницу логина при запросе /ru/favorites`,
+          );
+          throw new Error('Не удалось авторизоваться для доступа к странице избранного');
+        }
+      }
 
       if (!response.success || !response.data || typeof response.data !== 'string') {
         throw new Error('Не удалось получить HTML страницы избранного');
       }
 
-      const html = response.data as string;
+      // Гарантированно работаем со строкой
+      html = response.data as string;
 
       // Диагностика ответа: проверяем, что пришло — страница избранного или авторизации
       const hasTableBordered = html.includes('table-bordered');
