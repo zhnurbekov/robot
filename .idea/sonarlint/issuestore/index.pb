@@ -25,8 +25,6 @@ H
 src/main-cabinet-cron.ts,d/f/df8dc0cfa2cd733892a2e501bdb1433ab1df7fbe
 g
 7src/modules/portal-processor/portal-processor.module.ts,0/4/04555a42631389078886340fafcebc0b152899fd
-a
-1src/modules/application/application.controller.ts,d/c/dc5548f260a80d2fc19b4cc273573a983340f12c
 Q
 !src/file-downloader-app.module.ts,0/5/058e225779d2599a831412690bca2239b859797e
 `
