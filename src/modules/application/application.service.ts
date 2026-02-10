@@ -67,6 +67,7 @@ export class ApplicationService {
 	async submitApplication(applicationNumber: any) {
 		const startTime = Date.now();
 		let applicationId: string | null = null;
+		const timings: Record<string, number> = {};
 		
 		try {
 			const announcementsId = applicationNumber;
@@ -75,11 +76,14 @@ export class ApplicationService {
 			}
 			
 			// Проверяем авторизацию только если нужно
+			let t = Date.now();
 			await this.authService.login();
-			
+			timings['login'] = Date.now() - t;
 			
 			// Создаем объявление
+			t = Date.now();
 			const announcement = await this.portalProcessorService.processAnnouncementCreate(announcementsId);
+			timings['processAnnouncementCreate'] = Date.now() - t;
 			
 			if (!announcement?.applicationId) {
 				throw new Error('Не удалось создать заявку или получить applicationId');
@@ -88,6 +92,7 @@ export class ApplicationService {
 			applicationId = announcement.applicationId;
 
 			// ОПТИМИЗАЦИЯ: получаем taskId и обработчики без taskId параллельно, затем обработчики с taskId
+			t = Date.now();
 			const [taskId, , , ,] = await Promise.all([
 				this.portalProcessorService.getIdDataSheetHandle(announcementsId, applicationId, '3357'),
 				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '1356'),
@@ -95,19 +100,23 @@ export class ApplicationService {
 				this.portalProcessorService.copyingQualificationInformation(announcementsId, applicationId, '3362'),
 				this.portalProcessorService.obtainPermits(announcementsId, applicationId, '1351'),
 			]);
+			timings['batch1_getId_appendix_copying_permits'] = Date.now() - t;
+			
 			if (taskId == null) {
 				throw new Error('Не удалось получить taskId (getIdDataSheetHandle)');
 			}
 
+			t = Date.now();
 			await Promise.all([
 				this.portalProcessorService.setupBeneficialOwnershipInformation(announcementsId, applicationId, '3361', taskId),
 				this.portalProcessorService.addingBidSecurity(announcementsId, applicationId, '3353', taskId),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '1'),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '2'),
 			]);
+			timings['batch2_beneficial_bidSecurity_dataSheet_1_2'] = Date.now() - t;
 
-			
 			// Устанавливаем цену
+			t = Date.now();
 			try {
 				await this.portalProcessorService.setPrice(announcementsId, applicationId, '3353');
 			} catch (error) {
@@ -115,9 +124,13 @@ export class ApplicationService {
 				this.logger.warn(`[${applicationId}] Процесс продолжает работу (ошибка залогирована).`);
 				// Не выбрасываем — процесс не завершается
 			}
+			timings['setPrice'] = Date.now() - t;
 			
 			const duration = Date.now() - startTime;
-			this.logger.log(`[${applicationId}] ✅ Все операции завершены за ${duration}ms`);
+			const timingStr = Object.entries(timings)
+				.map(([k, v]) => `${k}=${v}ms`)
+				.join(', ');
+			this.logger.log(`[${applicationId}] ✅ Все операции завершены за ${duration}ms | ${timingStr}`);
 			
 		} catch (error) {
 			const duration = Date.now() - startTime;

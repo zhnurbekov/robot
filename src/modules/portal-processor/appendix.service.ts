@@ -93,17 +93,6 @@ export class AppendixService {
 					'Referer': `https://v3bl.goszakup.gov.kz${uploadUrl}`,
 				}
 			});
-			
-			await this.portalService.request({
-				url: uploadUrl,
-				method: 'POST',
-				isFormData: true,
-				data: formData,
-				additionalHeaders: {
-					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-					'Referer': `https://v3bl.goszakup.gov.kz${uploadUrl}`,
-				}
-			});
 
 			this.logger.log(`[${docId}] Подписанный документ отправлен. Статус: ${uploadResponse.status}`);
 
