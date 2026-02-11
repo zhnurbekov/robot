@@ -35,5 +35,13 @@ e
 5src/modules/file-downloader/file-downloader.module.ts,7/c/7c325d9d825a3396c2d22ccae0813c7bf9af5cae
 N
 src/cabinet-cron-app.module.ts,3/c/3c17d3e5662d28859bbdb76d565cc9cf62bc25d2
+T
+$src/modules/portal/portal.service.ts,8/f/8f0c404ebb9edf7ea67ea805aa9dec41f5ba0451
+4
+.env,3/c/3c84dcdc6bbe3d7817c49dcdc327b926fea1808a
+;
+src/main.ts,1/a/1af9a5bdf96ddff3a2f3427ed520b7005e9564ad
+<
+.env.example,d/4/d4dae00d11854b35292c2b8a30515a9a0aa2d871
 X
 (src/modules/telegram/telegram.service.ts,d/c/dcd8a1d32c34666644e57e10bd8ad82aa2c5a63f

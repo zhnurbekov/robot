@@ -430,40 +430,6 @@ export class PortalProcessorService implements IPortalProcessor {
 			});
 			
 			// Проверяем, не является ли ответ страницей авторизации
-			let responseData = response.data;
-			if (response.data && typeof response.data === 'string' &&
-				(response.data.includes('<title>Авторизация</title>') ||
-					response.data.includes('/user/login') ||
-					response.redirectedToAuth)) {
-				this.logger.warn(`Получена страница авторизации после POST запроса. Выполняем переавторизацию...`);
-				await this.authService.login(true);
-				
-				// Повторяем POST запрос после авторизации
-				const retryResponse = await this.portalService.request({
-					url: `/ru/application/ajax_create_application/${announceId}`,
-					method: 'POST',
-					isFormData: false,
-					data: requestData,
-					additionalHeaders: {
-						'Accept': 'application/json, text/javascript, */*; q=0.01',
-						'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-						'Referer': `https://v3bl.goszakup.gov.kz/ru/application/create/${announceId}`,
-						'X-Requested-With': 'XMLHttpRequest',
-					}
-				});
-				
-				if (retryResponse.data && typeof retryResponse.data === 'string' &&
-					(retryResponse.data.includes('<title>Авторизация</title>') ||
-						retryResponse.data.includes('/user/login') ||
-						retryResponse.redirectedToAuth)) {
-					throw new Error('После переавторизации все еще получаем страницу авторизации');
-				}
-				
-				responseData = retryResponse.data;
-			}
-			
-			this.logger.log(JSON.stringify(response),
-				'response')
 			
 			
 			const responseGetId = await this.portalService.request({
@@ -475,28 +441,7 @@ export class PortalProcessorService implements IPortalProcessor {
 			
 			// Проверяем, не является ли ответ страницей авторизации
 			let responseGetIdData = responseGetId.data;
-			if (responseGetId.data && typeof responseGetId.data === 'string' &&
-				(responseGetId.data.includes('<title>Авторизация</title>') ||
-					responseGetId.data.includes('/user/login') ||
-					responseGetId.redirectedToAuth)) {
-				this.logger.warn(`Получена страница авторизации после GET запроса. Выполняем переавторизацию...`);
-				await this.authService.login(true);
-				
-				// Повторяем GET запрос после авторизации
-				const retryGetResponse = await this.portalService.request({
-					url: `/ru/application/ajax_create_application/${announceId}`,
-					method: 'GET',
-				});
-				
-				if (retryGetResponse.data && typeof retryGetResponse.data === 'string' &&
-					(retryGetResponse.data.includes('<title>Авторизация</title>') ||
-						retryGetResponse.data.includes('/user/login') ||
-						retryGetResponse.redirectedToAuth)) {
-					throw new Error('После переавторизации все еще получаем страницу авторизации');
-				}
-				
-				responseGetIdData = retryGetResponse.data;
-			}
+
 			
 			
 			this.logger.log(JSON.stringify(responseGetId),
@@ -809,14 +754,14 @@ export class PortalProcessorService implements IPortalProcessor {
 			const docUrl = `/ru/application/show_doc/${announceId}/${applicationId}/${docId}`;
 			this.logger.log(`[${taskId}] Отправка GET запроса на ${docUrl} для извлечения appLotId...`);
 			
-			const getResponse = await this.portalService.request({
-				url: docUrl,
-				method: 'GET',
-				additionalHeaders: {
-					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-					'Referer': `https://v3bl.goszakup.gov.kz/ru/application/show/${announceId}/${applicationId}`,
-				}
-			});
+			// const getResponse = await this.portalService.request({
+			// 	url: docUrl,
+			// 	method: 'GET',
+			// 	additionalHeaders: {
+			// 		'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			// 		'Referer': `https://v3bl.goszakup.gov.kz/ru/application/show/${announceId}/${applicationId}`,
+			// 	}
+			// });
 			
 			
 			// Параметры по умолчанию
@@ -1144,27 +1089,27 @@ export class PortalProcessorService implements IPortalProcessor {
 			// Шаг 1: Отправить POST запрос на получение разрешений
 			const permitsUrl = `/ru/cabinet/permits/${announceId}/${applicationId}/${docId}`;
 			this.logger.log(`[${docId}] Отправка запроса на получение разрешений...`);
-			
-			const permitsResponse = await this.portalService.request({
-				url: permitsUrl,
-				method: 'POST',
-				isFormData: true,
-				data: {
-					'filter[nikad]': '',
-					'filter[date_issue]': '',
-					'request[type]': '1',
-					'request[text]': defaultRequestText,
-					'request[date_issue]': '',
-					'get_permit': 'Получить разрешения',
-					'type': 'permit',
-				},
-				additionalHeaders: {
-					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-					'Referer': `https://v3bl.goszakup.gov.kz${permitsUrl}`,
-				}
-			});
-			
-			this.logger.log(`[${docId}] Запрос на получение разрешений отправлен. Статус: ${permitsResponse.status}`);
+			//
+			// const permitsResponse = await this.portalService.request({
+			// 	url: permitsUrl,
+			// 	method: 'POST',
+			// 	isFormData: true,
+			// 	data: {
+			// 		'filter[nikad]': '',
+			// 		'filter[date_issue]': '',
+			// 		'request[type]': '1',
+			// 		'request[text]': defaultRequestText,
+			// 		'request[date_issue]': '',
+			// 		'get_permit': 'Получить разрешения',
+			// 		'type': 'permit',
+			// 	},
+			// 	additionalHeaders: {
+			// 		'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			// 		'Referer': `https://v3bl.goszakup.gov.kz${permitsUrl}`,
+			// 	}
+			// });
+			//
+			// this.logger.log(`[${docId}] Запрос на получение разрешений отправлен. Статус: ${permitsResponse.status}`);
 			
 			// Шаг 2: Отправить GET запрос на show_doc для получения HTML с таблицей
 			const docUrl = `/ru/application/show_doc/${announceId}/${applicationId}/${docId}`;
@@ -1188,19 +1133,19 @@ export class PortalProcessorService implements IPortalProcessor {
 			let html = docResponse.data as string;
 			
 			// Проверяем авторизацию и переавторизуемся при необходимости
-			const reauthHtml = await this.checkAndReauthIfNeeded(
-				html,
-				docResponse,
-				`obtainPermits-${docId}`,
-				docUrl,
-				{
-					'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-					'Referer': `https://v3bl.goszakup.gov.kz/ru/application/show/${announceId}/${applicationId}`,
-				}
-			);
-			if (reauthHtml) {
-				html = reauthHtml;
-			}
+			// const reauthHtml = await this.checkAndReauthIfNeeded(
+			// 	html,
+			// 	docResponse,
+			// 	`obtainPermits-${docId}`,
+			// 	docUrl,
+			// 	{
+			// 		'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+			// 		'Referer': `https://v3bl.goszakup.gov.kz/ru/application/show/${announceId}/${applicationId}`,
+			// 	}
+			// );
+			// if (reauthHtml) {
+			// 	html = reauthHtml;
+			// }
 			
 			// Шаг 3: Извлечь value из первого checkbox permit_select[]
 			// Логируем фрагмент HTML для отладки (первые 5000 символов)

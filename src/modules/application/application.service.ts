@@ -95,9 +95,8 @@ export class ApplicationService {
 			t = Date.now();
 			const [taskId, , , ,] = await Promise.all([
 				this.portalProcessorService.getIdDataSheetHandle(announcementsId, applicationId, '3357'),
-				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '1356'),
-				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '3352'),
-				this.portalProcessorService.copyingQualificationInformation(announcementsId, applicationId, '3362'),
+			
+			
 			]);
 			timings['batch1_getId_appendix_copying_permits'] = Date.now() - t;
 			
@@ -107,8 +106,11 @@ export class ApplicationService {
 
 			t = Date.now();
 			await Promise.all([
-				this.portalProcessorService.obtainPermits(announcementsId, applicationId, '1351'),
 				this.portalProcessorService.setupBeneficialOwnershipInformation(announcementsId, applicationId, '3361', taskId),
+				this.portalProcessorService.copyingQualificationInformation(announcementsId, applicationId, '3362'),
+				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '1356'),
+				this.portalProcessorService.appendixHandle(announcementsId, applicationId, '3352'),
+				this.portalProcessorService.obtainPermits(announcementsId, applicationId, '1351'),
 				this.portalProcessorService.addingBidSecurity(announcementsId, applicationId, '3353', taskId),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '1'),
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '2'),
