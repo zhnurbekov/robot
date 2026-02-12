@@ -90,7 +90,7 @@ export class ApplicationService {
 			}
 			
 			applicationId = announcement.applicationId;
-
+			
 			// ОПТИМИЗАЦИЯ: получаем taskId и обработчики без taskId параллельно, затем обработчики с taskId
 			t = Date.now();
 			const [taskId, , , ,] = await Promise.all([
@@ -103,7 +103,7 @@ export class ApplicationService {
 			if (taskId == null) {
 				throw new Error('Не удалось получить taskId (getIdDataSheetHandle)');
 			}
-
+			
 			t = Date.now();
 			await Promise.all([
 				this.portalProcessorService.setupBeneficialOwnershipInformation(announcementsId, applicationId, '3361', taskId),
@@ -116,7 +116,7 @@ export class ApplicationService {
 				this.portalProcessorService.dataSheetHandle(announcementsId, applicationId, '3357', taskId, '2'),
 			]);
 			timings['batch2_beneficial_bidSecurity_dataSheet_1_2'] = Date.now() - t;
-
+			
 			// Устанавливаем цену
 			t = Date.now();
 			try {
@@ -133,6 +133,7 @@ export class ApplicationService {
 				.map(([k, v]) => `${k}=${v}ms`)
 				.join(', ');
 			this.logger.log(`[${applicationId}] ✅ Все операции завершены за ${duration}ms | ${timingStr}`);
+			console.log(`================================== [${applicationId}] ✅ Все операции завершены за ${duration}ms | ${timingStr} ==================================`);
 			
 		} catch (error) {
 			const duration = Date.now() - startTime;
