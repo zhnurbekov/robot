@@ -400,12 +400,12 @@ export class PortalProcessorService implements IPortalProcessor {
 	async processAnnouncementCreate(announceId: string | any): Promise<any> {
 		
 		try {
-			// Параметры по умолчанию
+			// Параметры из env (ajax_create_application)
 			const defaultParams = {
-				subject_address: '789512',
-				iik: '1545731',
-				contact_phone: '712036',
-				tax_payer_type: 'UL',
+				subject_address: this.configService.get<string>('CREATE_APP_SUBJECT_ADDRESS', '789512'),
+				iik: this.configService.get<string>('CREATE_APP_IIK', '1545731'),
+				contact_phone: this.configService.get<string>('CREATE_APP_CONTACT_PHONE', '712036'),
+				tax_payer_type: this.configService.get<string>('CREATE_APP_TAX_PAYER_TYPE', 'UL'),
 			};
 			
 			// Объединяем параметры
@@ -764,21 +764,21 @@ export class PortalProcessorService implements IPortalProcessor {
 			// });
 			
 			
-			// Параметры по умолчанию
 			const defaultData = {
-				beneficiary_name: 'САГИМБАЕВ БАУЫРЖАН ТЛЕУИЕВИЧ',
-				citizenship: '398',
-				res_country: '398',
-				beneficiary_doc_number: '042380208',
-				beneficiary_doc_date: '2017-02-23',
-				option_1: '1',
-				option_2: '1',
-				option_3: '1',
-				option_4: '2',
+				beneficiary_name: this.configService.get<string>('BENEFICIARY_NAME', 'САГИМБАЕВ БАУЫРЖАН ТЛЕУИЕВИЧ'),
+				citizenship: this.configService.get<string>('BENEFICIARY_CITIZENSHIP', '398'),
+				res_country: this.configService.get<string>('BENEFICIARY_RES_COUNTRY', '398'),
+				beneficiary_doc_number: this.configService.get<string>('BENEFICIARY_DOC_NUMBER', '042380208'),
+				beneficiary_doc_date: this.configService.get<string>('BENEFICIARY_DOC_DATE', '2017-02-23'),
+				option_1: this.configService.get<string>('BENEFICIARY_OPTION_1', '1'),
+				option_2: this.configService.get<string>('BENEFICIARY_OPTION_2', '1'),
+				option_3: this.configService.get<string>('BENEFICIARY_OPTION_3', '1'),
+				option_4: this.configService.get<string>('BENEFICIARY_OPTION_4', '2'),
 				app_lot_id: extractedAppLotId,
 				beneficiary_id: '',
 			};
 			
+			console.log(JSON.stringify(defaultData),'defaultData')
 			// Объединяем параметры по умолчанию с переданными данными
 			const requestData = {
 				...defaultData,
@@ -952,8 +952,7 @@ export class PortalProcessorService implements IPortalProcessor {
 		this.logger.log(`Копирование квалификационной информации для документа ${docId} заявки ${applicationId}...`);
 		
 		try {
-			// Параметры по умолчанию
-			const defaultAnnoNumber = annoNumber || '15880798-1';
+			const defaultAnnoNumber = annoNumber || this.configService.get<string>('CREATE_APP_DEFAULT_ANNO_NUMBER', '15880798-1');
 			
 			// Шаг 1: Отправить запрос на поиск
 			this.logger.log(`[${docId}] Отправка запроса на поиск квалификационной информации...`);
@@ -1917,7 +1916,7 @@ export class PortalProcessorService implements IPortalProcessor {
 			for (let attempt = 1; attempt <= setDataMaxRetries; attempt++) {
 				try {
 					this.logger.log(`[${taskId}] setData (попытка ${attempt}/${setDataMaxRetries})...`);
-					await this.setData(minPrice + 500000);
+					await this.setData(minPrice);
 					setDataError = null;
 					break;
 				} catch (err) {

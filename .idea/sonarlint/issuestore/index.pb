@@ -15,8 +15,6 @@ R
 nest-cli.json,f/8/f8b4d91a2772d75f9d2df1baebf3baa395ae9203
 I
 src/monitor-app.module.ts,5/4/54ae8e8f5c61d501fa1c3a68b4ba7e6072266d5a
-P
- src/modules/auth/auth.service.ts,5/7/57990f5606a543f99d188093ccc24170abc92610
 ]
 -src/modules/application/application.module.ts,a/8/a8b70bd8541614120093efc79f9aeda12fb6f3c9
 G
@@ -37,11 +35,9 @@ N
 src/cabinet-cron-app.module.ts,3/c/3c17d3e5662d28859bbdb76d565cc9cf62bc25d2
 T
 $src/modules/portal/portal.service.ts,8/f/8f0c404ebb9edf7ea67ea805aa9dec41f5ba0451
-4
-.env,3/c/3c84dcdc6bbe3d7817c49dcdc327b926fea1808a
 ;
 src/main.ts,1/a/1af9a5bdf96ddff3a2f3427ed520b7005e9564ad
-<
-.env.example,d/4/d4dae00d11854b35292c2b8a30515a9a0aa2d871
 X
 (src/modules/telegram/telegram.service.ts,d/c/dcd8a1d32c34666644e57e10bd8ad82aa2c5a63f
+\
+,src/modules/ncanode/crypto-socket.service.ts,b/4/b42237f7ea83b9dbf7842c8c288998240e9830ff
