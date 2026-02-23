@@ -5,7 +5,12 @@
       <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.module.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/announce-monitor/announce-monitor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/announce-monitor/announce-monitor.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/portal/portal.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal/portal.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/redis/redis.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/redis/redis.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yarn.lock" beforeDir="false" afterPath="$PROJECT_DIR$/yarn.lock" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,7 +47,7 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/config" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.path.for.package.eslint" value="project" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
@@ -93,7 +98,10 @@
       <workItem from="1770735064116" duration="12985000" />
       <workItem from="1770828638378" duration="6238000" />
       <workItem from="1771007097518" duration="2918000" />
-      <workItem from="1771264281867" duration="6226000" />
+      <workItem from="1771264281867" duration="8625000" />
+      <workItem from="1771309296226" duration="446000" />
+      <workItem from="1771546773529" duration="978000" />
+      <workItem from="1771776350363" duration="2453000" />
     </task>
     <servers />
   </component>

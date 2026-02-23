@@ -2,26 +2,22 @@ import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { RedisModule } from './modules/redis/redis.module';
 import { HttpModule } from './modules/http/http.module';
-import { PortalModule } from './modules/portal/portal.module';
 import { SessionModule } from './modules/session/session.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { PortalModule } from './modules/portal/portal.module';
 import { NcanodeModule } from './modules/ncanode/ncanode.module';
-import { ApplicationModule } from './modules/application/application.module';
-import { FileProcessorModule } from './modules/file-processor/file-processor.module';
-import { RedisModule } from './modules/redis/redis.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { FavoritesCronModule } from './modules/favorites-cron/favorites-cron.module';
 import { SessionService } from './modules/session/session.service';
+import { Logger } from '@nestjs/common';
 
 @Module({
   imports: [
-    // Конфигурация
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
-    // PostgreSQL
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -37,29 +33,24 @@ import { SessionService } from './modules/session/session.service';
       }),
       inject: [ConfigService],
     }),
-    // Планировщик задач
     ScheduleModule.forRoot(),
-    // Redis для кэширования
     RedisModule,
-    // Модули приложения
     HttpModule,
     SessionModule,
-    PortalModule,
     NcanodeModule,
     AuthModule,
-    ApplicationModule,
-    FileProcessorModule,
+    PortalModule,
+    FavoritesCronModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
-export class AppModule implements OnModuleInit {
+export class FavoritesCronAppModule implements OnModuleInit {
+  private readonly logger = new Logger(FavoritesCronAppModule.name);
+
   constructor(private sessionService: SessionService) {}
 
   async onModuleInit() {
-    // Инициализируем сессию при старте приложения
+    this.logger.log('Инициализация крона избранного...');
     await this.sessionService.initialize();
+    this.logger.log('Крон избранного готов: запрос /ru/favorites по расписанию, при смене статуса — запись в БД');
   }
 }
-
-

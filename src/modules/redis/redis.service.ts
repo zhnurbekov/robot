@@ -223,5 +223,48 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`Ошибка установки TTL в Redis: ${(error as Error).message}`);
     }
   }
+
+  /** Добавить элемент в правый конец списка (очередь логов HTTP) */
+  async rpush(key: string, ...values: string[]): Promise<number> {
+    if (!this.isRedisAvailable() || !this.client) return 0;
+    try {
+      return await this.client.rpush(key, ...values);
+    } catch (error) {
+      this.logger.warn(`Ошибка RPUSH в Redis: ${(error as Error).message}`);
+      return 0;
+    }
+  }
+
+  /** Длина списка */
+  async llen(key: string): Promise<number> {
+    if (!this.isRedisAvailable() || !this.client) return 0;
+    try {
+      return await this.client.llen(key);
+    } catch (error) {
+      this.logger.warn(`Ошибка LLEN в Redis: ${(error as Error).message}`);
+      return 0;
+    }
+  }
+
+  /** Обрезать список: оставить только элементы от start до stop (например -50000 -1 — последние 50000) */
+  async ltrim(key: string, start: number, stop: number): Promise<void> {
+    if (!this.isRedisAvailable() || !this.client) return;
+    try {
+      await this.client.ltrim(key, start, stop);
+    } catch (error) {
+      this.logger.warn(`Ошибка LTRIM в Redis: ${(error as Error).message}`);
+    }
+  }
+
+  /** Получить диапазон элементов списка (для крона: чтение логов и перенос в БД) */
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    if (!this.isRedisAvailable() || !this.client) return [];
+    try {
+      return await this.client.lrange(key, start, stop);
+    } catch (error) {
+      this.logger.warn(`Ошибка LRANGE в Redis: ${(error as Error).message}`);
+      return [];
+    }
+  }
 }
 

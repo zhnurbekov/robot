@@ -25,6 +25,22 @@ export interface FavoriteAnnouncement {
   url: string; // URL объявления
 }
 
+/** Запись лога HTTP-запроса в Redis (крон перенесёт в БД). В Redis записываются поля desc, action, lotId. */
+export interface HttpRequestLogEntry {
+  url: string;
+  method: string;
+  success: boolean;
+  statusCode?: number;
+  durationMs: number;
+  errorMessage?: string;
+  timestamp: string;
+  source: string;
+  context?: string;
+  desc?: string;
+  action?: string;
+  lotId?: string;
+}
+
 @Injectable()
 export class AnnounceMonitorService {
   private readonly logger = new Logger(AnnounceMonitorService.name);
@@ -34,6 +50,10 @@ export class AnnounceMonitorService {
   private readonly redisKeyPrefix = 'announcement:processing:';
   /** TTL на случай падения процесса: через 1 мин ключ исчезнет и заявку можно будет взять снова */
   private readonly redisTtlSeconds = 60; // 1 минута
+  /** Ключ списка логов HTTP в Redis (поля desc, action, lotId сохраняются) */
+  private readonly httpRequestsLogKey = 'http:requests:log';
+  private readonly httpLogListMaxLen = 50000;
+  private readonly logHttpToRedis: boolean;
 
   constructor(
     private httpService: HttpService,
@@ -46,9 +66,24 @@ export class AnnounceMonitorService {
     private redisService: RedisService,
     private telegramService: TelegramService,
   ) {
-    // URL основного приложения для вызова API start
     const mainAppPort = this.configService.get<number>('PORT', 3000);
     this.mainAppUrl = `http://localhost:${mainAppPort}/api/applications/start`;
+    this.logHttpToRedis = this.configService.get<string>('LOG_HTTP_TO_REDIS', 'false') === 'true';
+  }
+
+  /** Записать лог HTTP в Redis (в т.ч. поля desc, action, lotId). */
+  private async recordHttpRequest(entry: HttpRequestLogEntry): Promise<void> {
+    if (!this.logHttpToRedis || !this.redisService.isRedisAvailable()) return;
+    try {
+      const payload = { ...entry, source: 'announce-monitor' };
+      await this.redisService.rpush(this.httpRequestsLogKey, JSON.stringify(payload));
+      const len = await this.redisService.llen(this.httpRequestsLogKey);
+      if (len > this.httpLogListMaxLen) {
+        await this.redisService.ltrim(this.httpRequestsLogKey, -this.httpLogListMaxLen, -1);
+      }
+    } catch (err) {
+      this.logger.warn(`Не удалось записать HTTP-лог в Redis: ${(err as Error).message}`);
+    }
   }
 
   /**
@@ -63,14 +98,47 @@ export class AnnounceMonitorService {
       // Проверяем авторизацию (быстрая локальная проверка)
       await this.authService.login();
 
-      const makeFavoritesRequest = async () => {
-        return this.portalService.request({
-          url: '/ru/favorites',
-          method: 'GET',
-          additionalHeaders: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-        });
+      const makeFavoritesRequest = async (): Promise<any> => {
+        const url = '/ru/favorites';
+        const method = 'GET';
+        const start = Date.now();
+        const desc = 'Получение избранного';
+        const action = 'getFavorites';
+        try {
+          const r = await this.portalService.request({
+            url,
+            method: 'GET',
+            timeout:   1000,
+            additionalHeaders: {
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+          });
+          await this.recordHttpRequest({
+            url,
+            method,
+            success: r.success === true,
+            statusCode: r.status,
+            durationMs: Date.now() - start,
+            timestamp: new Date().toISOString(),
+            context: 'getFavorites',
+            desc,
+            action,
+          });
+          return r;
+        } catch (e) {
+          await this.recordHttpRequest({
+            url,
+            method,
+            success: false,
+            durationMs: Date.now() - start,
+            errorMessage: (e as Error).message,
+            timestamp: new Date().toISOString(),
+            context: 'getFavorites',
+            desc,
+            action,
+          });
+          throw e;
+        }
       };
 
       // Отправляем запрос на страницу избранного
@@ -355,6 +423,9 @@ export class AnnounceMonitorService {
       this.logger.error(`[${taskId}] ❌ Ошибка при вызове API start: ${(error as Error).message}`);
       
       // Если прямой вызов не работает, пробуем через HTTP
+      const httpStart = Date.now();
+      const desc = 'Запуск подачи заявки';
+      const action = 'applicationStart';
       try {
         this.logger.log(`[${taskId}] Попытка вызова через HTTP API...`);
         const response = await axios.post(this.mainAppUrl, { number: announceId }, {
@@ -363,14 +434,40 @@ export class AnnounceMonitorService {
             'Content-Type': 'application/json',
           },
         });
+        const durationMs = Date.now() - httpStart;
+
+        await this.recordHttpRequest({
+          url: this.mainAppUrl,
+          method: 'POST',
+          success: response.status >= 200 && response.status < 400,
+          statusCode: response.status,
+          durationMs,
+          timestamp: new Date().toISOString(),
+          context: 'applicationStart',
+          desc,
+          action,
+          lotId: announceId,
+        });
 
         this.logger.log(`[${taskId}] ✅ HTTP запрос выполнен успешно. Статус: ${response.status}`);
 
-        // После успешного HTTP-вызова также удаляем объявление из избранного
         await this.deleteFromFavorites(announceId);
       } catch (httpError) {
+        const durationMs = Date.now() - httpStart;
+        await this.recordHttpRequest({
+          url: this.mainAppUrl,
+          method: 'POST',
+          success: false,
+          durationMs,
+          errorMessage: (httpError as Error).message,
+          timestamp: new Date().toISOString(),
+          context: 'applicationStart',
+          desc,
+          action,
+          lotId: announceId,
+        });
         this.logger.error(`[${taskId}] ❌ Ошибка при HTTP запросе: ${(httpError as Error).message}`);
-        throw error; // Бросаем исходную ошибку
+        throw error;
       }
     }
   }
@@ -392,14 +489,28 @@ export class AnnounceMonitorService {
 
     const startTime = Date.now();
 
+    const desc = 'Удаление из избранного';
+    const action = 'deleteFromFavorites';
     try {
-      // Используем PortalService, чтобы сохранить сессию/куки
       const response = await this.portalService.request({
         url,
         method: 'GET',
       });
 
       const durationMs = Date.now() - startTime;
+
+      await this.recordHttpRequest({
+        url,
+        method: 'GET',
+        success: response.success === true,
+        statusCode: response.status,
+        durationMs,
+        timestamp: sendTimeIso,
+        context: 'deleteFromFavorites',
+        desc,
+        action,
+        lotId: announceId,
+      });
 
       if (!response.success) {
         this.logger.warn(`[${taskId}] Запрос удаления из избранного завершился неуспешно. Время выполнения: ${durationMs} мс`);
@@ -411,6 +522,18 @@ export class AnnounceMonitorService {
       );
     } catch (error) {
       const durationMs = Date.now() - startTime;
+      await this.recordHttpRequest({
+        url,
+        method: 'GET',
+        success: false,
+        durationMs,
+        errorMessage: (error as Error).message,
+        timestamp: sendTimeIso,
+        context: 'deleteFromFavorites',
+        desc,
+        action,
+        lotId: announceId,
+      });
       this.logger.error(
         `[${taskId}] ❌ Ошибка при удалении из избранного (ID=${announceId}). Время отправки: ${sendTimeIso}, время выполнения: ${durationMs} мс. Ошибка: ${(error as Error).message}`,
       );

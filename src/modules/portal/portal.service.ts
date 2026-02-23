@@ -546,6 +546,7 @@ export class PortalService {
 		isFormData?: boolean;
 		referer?: string;
 		additionalHeaders?: Record<string, string>;
+		timeout?: number;
 	}): Promise<any> {
 		try {
 			const {
@@ -555,7 +556,8 @@ export class PortalService {
 				params = {},
 				isFormData = false,
 				referer,
-				additionalHeaders = {}
+				additionalHeaders = {},
+				timeout
 			} = config;
 			
 			// Проверяем, что url является строкой
@@ -578,12 +580,15 @@ export class PortalService {
 			this.logger.debug(`Выполнение ${method} запроса на ${url} (тип: ${typeof url})`);
 			
 			let response;
-			const requestConfig = {
+			const requestConfig: any = {
 				headers,
 				params,
 				maxRedirects: 5,
-			validateStatus: (status: number) => status < 500,
+				validateStatus: (status: number) => status < 500,
 			};
+			if (timeout != null) {
+				requestConfig.timeout = timeout;
+			}
 			
 			if (method === 'GET') {
 				// Определяем, нужно ли кэшировать этот запрос
