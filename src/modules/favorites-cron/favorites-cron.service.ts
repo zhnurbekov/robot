@@ -55,8 +55,28 @@ export class FavoritesCronService {
         this.logger.log(`Записано в БД избранного: ${toLog.length}`);
       }
     } catch (error) {
-      this.logger.error(`Ошибка крона избранного: ${(error as Error).message}`);
+      const message = (error as Error)?.message ?? String(error);
+      this.logger.error(`Ошибка крона избранного: ${message}`);
+      try {
+        await this.writeErrorToLog(message);
+      } catch (logErr) {
+        this.logger.error(`Не удалось записать ошибку в лог БД: ${(logErr as Error).message}`);
+      }
     }
+  }
+
+  /** Записать ошибку (в т.ч. авторизации) в таблицу logs */
+  private async writeErrorToLog(errorMessage: string): Promise<void> {
+    const status = (errorMessage || 'Неизвестная ошибка').slice(0, 256);
+    const log = this.logRepo.create({
+      desc: 'Ошибка авторизации / крона избранного',
+      action: 'auth_error',
+      status,
+      lotId: null,
+      createdAt: new Date(),
+    });
+    await this.logRepo.save(log);
+    this.logger.log('Ошибка авторизации записана в таблицу logs');
   }
 
   /**
@@ -84,7 +104,23 @@ export class FavoritesCronService {
 
     if (isLoginPage) {
       await this.authService.login(true);
-      return this.fetchFavorites();
+      const retryResponse = await this.portalService.request({
+        url: '/ru/favorites',
+        method: 'GET',
+        additionalHeaders: {
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+      const retryHtml = typeof retryResponse.data === 'string' ? retryResponse.data : '';
+      const stillLoginPage =
+        retryResponse.redirectedToAuth ||
+        retryHtml.includes('<title>Авторизация</title>') ||
+        retryHtml.includes('/user/login') ||
+        retryHtml.includes('window.current_method = "login"');
+      if (stillLoginPage) {
+        throw new Error('Не удалось авторизоваться для доступа к избранному (после переавторизации снова страница логина)');
+      }
+      return this.parseFavoritesTable(retryHtml);
     }
 
     return this.parseFavoritesTable(html);

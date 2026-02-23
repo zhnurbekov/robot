@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisModule } from './modules/redis/redis.module';
+import { ErrorLogModule } from './modules/error-log/error-log.module';
 import { HttpLogCronModule } from './modules/http-log-cron/http-log-cron.module';
 import { Logger } from '@nestjs/common';
 
@@ -29,6 +30,7 @@ import { Logger } from '@nestjs/common';
     }),
     ScheduleModule.forRoot(),
     RedisModule,
+    ErrorLogModule,
     HttpLogCronModule,
   ],
 })

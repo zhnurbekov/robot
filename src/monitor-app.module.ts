@@ -6,6 +6,7 @@ import { HttpModule } from './modules/http/http.module';
 import { SessionModule } from './modules/session/session.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { ErrorLogModule } from './modules/error-log/error-log.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { AnnounceMonitorModule } from './modules/announce-monitor/announce-monitor.module';
 import { SessionService } from './modules/session/session.service';
@@ -23,6 +24,7 @@ import { Logger } from '@nestjs/common';
     ScheduleModule.forRoot(),
     // Redis для кэширования сессий
     RedisModule,
+    ErrorLogModule,
     // Модули для мониторинга
     HttpModule,
     SessionModule,

@@ -6,6 +6,7 @@ import { HttpModule } from './modules/http/http.module';
 import { SessionModule } from './modules/session/session.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { ErrorLogModule } from './modules/error-log/error-log.module';
 import { PortalModule } from './modules/portal/portal.module';
 import { FileDownloaderModule } from './modules/file-downloader/file-downloader.module';
 import { SessionService } from './modules/session/session.service';
@@ -20,6 +21,7 @@ import { Logger } from '@nestjs/common';
     }),
     ScheduleModule.forRoot(),
     RedisModule,
+    ErrorLogModule,
     HttpModule,
     SessionModule,
     AuthModule,

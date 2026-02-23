@@ -10,6 +10,7 @@ import { NcanodeModule } from './modules/ncanode/ncanode.module';
 import { ApplicationModule } from './modules/application/application.module';
 import { FileProcessorModule } from './modules/file-processor/file-processor.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { ErrorLogModule } from './modules/error-log/error-log.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SessionService } from './modules/session/session.service';
@@ -39,8 +40,8 @@ import { SessionService } from './modules/session/session.service';
     }),
     // Планировщик задач
     ScheduleModule.forRoot(),
-    // Redis для кэширования
     RedisModule,
+    ErrorLogModule,
     // Модули приложения
     HttpModule,
     SessionModule,

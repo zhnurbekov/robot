@@ -58,7 +58,10 @@ export class HttpLogCronService {
         const log = new HttpRequestLog();
         log.desc = entry.desc != null ? String(entry.desc) : null;
         log.action = entry.action != null ? String(entry.action) : null;
-        log.status = Boolean(entry.success) ? 'success' : 'error';
+        const statusFromError = entry.success === false && entry.errorMessage != null
+          ? String(entry.errorMessage).slice(0, 256)
+          : null;
+        log.status = statusFromError ?? (Boolean(entry.success) ? 'success' : 'error');
         if (entry.lotId != null) {
           const parsed = parseInt(String(entry.lotId), 10);
           log.lotId = Number.isNaN(parsed) ? null : parsed;

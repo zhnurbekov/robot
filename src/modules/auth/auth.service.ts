@@ -4,7 +4,7 @@ import { HttpService } from '../http/http.service';
 import { PortalService } from '../portal/portal.service';
 import { NcanodeService } from '../ncanode/ncanode.service';
 import { SessionService } from '../session/session.service';
-
+import { ErrorLogService } from '../error-log/error-log.service';
 import { globalSessionState } from './global-session-state';
 
 @Injectable()
@@ -19,6 +19,7 @@ export class AuthService {
     private portalService: PortalService,
     private ncanodeService: NcanodeService,
     private sessionService: SessionService,
+    private errorLogService: ErrorLogService,
   ) {}
 
   async login(force: boolean = false): Promise<boolean> {
@@ -243,16 +244,17 @@ export class AuthService {
 
       throw new Error(`Авторизация не удалась. Статус: ${authResponse.status}`);
     } catch (error) {
-      this.logger.error(`Ошибка авторизации: ${error.message}`);
+      const message = (error as Error)?.message ?? String(error);
+      this.logger.error(`Ошибка авторизации: ${message}`);
       if ((error as any).response) {
         this.logger.error(
           `Ответ сервера: ${(error as any).response.status} ${JSON.stringify((error as any).response.data)}`,
         );
       }
       this.isAuthenticated = false;
-      // Обновляем глобальное состояние
       globalSessionState.isAuthenticated = false;
       globalSessionState.isValid = false;
+      await this.errorLogService.pushError('AuthService', message, { desc: 'Ошибка авторизации', action: 'auth_error' });
       throw error;
     }
   }

@@ -2,6 +2,7 @@ import {Injectable, Logger} from '@nestjs/common';
 import {ConfigService} from '@nestjs/config';
 import {HttpService} from '../http/http.service';
 import {RedisService} from '../redis/redis.service';
+import {ErrorLogService} from '../error-log/error-log.service';
 import * as crypto from 'crypto';
 
 /**
@@ -19,6 +20,7 @@ export class PortalService {
 		private httpService: HttpService,
 		private configService: ConfigService,
 		private redisService: RedisService,
+		private errorLogService: ErrorLogService,
 	) {
 		this.enableHtmlCache = this.configService.get<boolean>('ENABLE_HTML_CACHE', false);
 	}
@@ -673,9 +675,11 @@ export class PortalService {
 				redirectedToAuth: redirectedToAuth,
 			};
 		} catch (error) {
-			this.logger.error(`Ошибка запроса ${config.method} ${config.url}: ${(error as Error).message}`);
+			const msg = (error as Error)?.message ?? String(error);
+			this.logger.error(`Ошибка запроса ${config.method} ${config.url}: ${msg}`);
 			if ((error as any).response) {
 				this.logger.error(`Статус ответа: ${(error as any).response.status}`);
+				await this.errorLogService.pushError('PortalService', msg, { desc: `Ошибка запроса ${config.method} ${config.url}`, action: 'request_error' });
 				return {
 					success: false,
 					status: (error as any).response.status,
@@ -683,6 +687,7 @@ export class PortalService {
 					redirectedToAuth: false,
 				};
 			}
+			await this.errorLogService.pushError('PortalService', msg, { desc: `Ошибка запроса ${config.method} ${config.url}`, action: 'request_error' });
 			throw error;
 		}
 	}

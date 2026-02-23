@@ -5,6 +5,7 @@ import { AuthService } from '../auth/auth.service';
 import { PortalService } from '../portal/portal.service';
 import { ApplicationService } from '../application/application.service';
 import { RedisService } from '../redis/redis.service';
+import { ErrorLogService } from '../error-log/error-log.service';
 import { TelegramService } from '../telegram/telegram.service';
 import * as cheerio from 'cheerio';
 import axios from 'axios';
@@ -64,6 +65,7 @@ export class AnnounceMonitorService {
     @Inject(forwardRef(() => ApplicationService))
     private applicationService: ApplicationService,
     private redisService: RedisService,
+    private errorLogService: ErrorLogService,
     private telegramService: TelegramService,
   ) {
     const mainAppPort = this.configService.get<number>('PORT', 3000);
@@ -201,7 +203,9 @@ export class AnnounceMonitorService {
       this.logger.log(`[${taskId}] Получено избранных объявлений: ${favorites.length}`);
       return favorites;
     } catch (error) {
-      this.logger.error(`[${taskId}] Ошибка при получении избранных объявлений: ${(error as Error).message}`);
+      const msg = (error as Error)?.message ?? String(error);
+      this.logger.error(`[${taskId}] Ошибка при получении избранных объявлений: ${msg}`);
+      await this.errorLogService.pushError('AnnounceMonitorService', msg, { desc: 'Ошибка получения избранного', action: 'getFavorites_error' });
       throw error;
     }
   }
@@ -398,7 +402,9 @@ export class AnnounceMonitorService {
         }
       }
     } catch (error) {
-      this.logger.error(`[${taskId}] Ошибка при мониторинге статусов: ${(error as Error).message}`);
+      const msg = (error as Error)?.message ?? String(error);
+      this.logger.error(`[${taskId}] Ошибка при мониторинге статусов: ${msg}`);
+      await this.errorLogService.pushError('AnnounceMonitorService', msg, { desc: 'Ошибка мониторинга избранного', action: 'monitorFavorites_error' });
       throw error;
     }
   }

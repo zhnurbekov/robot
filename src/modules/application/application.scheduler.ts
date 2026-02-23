@@ -4,6 +4,7 @@ import {ConfigService} from '@nestjs/config';
 import {PortalProcessorService} from "../portal-processor/portal-processor.service";
 import {ApplicationService} from './application.service';
 import {AuthService} from '../auth/auth.service';
+import {ErrorLogService} from '../error-log/error-log.service';
 import {NcanodeService} from '../ncanode/ncanode.service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -18,6 +19,7 @@ export class ApplicationScheduler implements OnModuleInit {
 		private authService: AuthService,
 		private ncanodeService: NcanodeService,
 		private portalProcessorService: PortalProcessorService,
+		private errorLogService: ErrorLogService,
 	) {
 	}
 	
@@ -70,7 +72,9 @@ export class ApplicationScheduler implements OnModuleInit {
 			
 			
 		} catch (error) {
-			this.logger.error(`Ошибка выполнения задачи: ${error.message}`);
+			const msg = (error as Error)?.message ?? String(error);
+			this.logger.error(`Ошибка выполнения задачи: ${msg}`);
+			await this.errorLogService.pushError('ApplicationScheduler', msg, { desc: 'Ошибка выполнения задачи по расписанию', action: 'scheduler_error' });
 			throw error;
 		}
 	}

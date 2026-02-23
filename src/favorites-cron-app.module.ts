@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisModule } from './modules/redis/redis.module';
+import { ErrorLogModule } from './modules/error-log/error-log.module';
 import { HttpModule } from './modules/http/http.module';
 import { SessionModule } from './modules/session/session.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -35,6 +36,7 @@ import { Logger } from '@nestjs/common';
     }),
     ScheduleModule.forRoot(),
     RedisModule,
+    ErrorLogModule,
     HttpModule,
     SessionModule,
     NcanodeModule,

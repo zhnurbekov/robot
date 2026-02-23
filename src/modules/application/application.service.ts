@@ -6,6 +6,7 @@ import {AuthService} from '../auth/auth.service';
 import {NcanodeService} from '../ncanode/ncanode.service';
 import {HttpService} from '../http/http.service';
 import {RedisService} from '../redis/redis.service';
+import {ErrorLogService} from '../error-log/error-log.service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -31,6 +32,7 @@ export class ApplicationService {
 		private portalProcessorService: PortalProcessorService,
 		private httpService: HttpService,
 		private redisService: RedisService,
+		private errorLogService: ErrorLogService,
 	) {
 		this.enableFileCache = this.configService.get<boolean>('ENABLE_REDIS_FILE_CACHE', false);
 		// Создаем временную директорию для файлов (fallback для больших файлов)
@@ -49,7 +51,9 @@ export class ApplicationService {
 				}
 				return success;
 			} catch (error) {
-				this.logger.error(`❌ Ошибка при переавторизации: ${(error as Error).message}`);
+				const msg = (error as Error)?.message ?? String(error);
+				this.logger.error(`❌ Ошибка при переавторизации: ${msg}`);
+				await this.errorLogService.pushError('ApplicationService', msg, { desc: 'Ошибка переавторизации', action: 'reauth_error' });
 				return false;
 			}
 		});
@@ -137,9 +141,9 @@ export class ApplicationService {
 			
 		} catch (error) {
 			const duration = Date.now() - startTime;
-			this.logger.error(`Ошибка подачи заявки за ${duration}ms: ${(error as Error).message}`);
-			
-			// Если заявка была создана, удаляем её
+			const msg = (error as Error)?.message ?? String(error);
+			this.logger.error(`Ошибка подачи заявки за ${duration}ms: ${msg}`);
+			await this.errorLogService.pushError('ApplicationService', msg, { desc: 'Ошибка подачи заявки', action: 'submit_error', lotId: applicationId ?? undefined });
 			if (applicationId) {
 				try {
 					this.logger.log(`Попытка удаления заявки ${applicationId} из-за ошибки...`);
@@ -149,7 +153,6 @@ export class ApplicationService {
 					this.logger.error(`❌ Не удалось удалить заявку ${applicationId}: ${(deleteError as Error).message}`);
 				}
 			}
-			
 			throw error;
 		}
 	}
