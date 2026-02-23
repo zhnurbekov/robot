@@ -26,7 +26,7 @@ export interface FavoriteAnnouncement {
   url: string; // URL объявления
 }
 
-/** Запись лога HTTP-запроса в Redis (крон перенесёт в БД). В Redis записываются поля desc, action, lotId. */
+/** Запись лога HTTP-запроса в Redis (крон перенесёт в БД). Поле source подставляется в recordHttpRequest. */
 export interface HttpRequestLogEntry {
   url: string;
   method: string;
@@ -35,7 +35,7 @@ export interface HttpRequestLogEntry {
   durationMs: number;
   errorMessage?: string;
   timestamp: string;
-  source: string;
+  source?: string;
   context?: string;
   desc?: string;
   action?: string;
