@@ -3,20 +3,11 @@
   <component name="ChangeListManager">
     <list default="true" id="c1e6446f-5446-4f91-afbf-d4427f534af5" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sonarlint/issuestore/index.pb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.module.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/cabinet-cron-app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/cabinet-cron-app.module.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/favorites-cron-app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/favorites-cron-app.module.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/file-downloader-app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/file-downloader-app.module.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/http-log-cron-app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/http-log-cron-app.module.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/modules/announce-monitor/announce-monitor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/announce-monitor/announce-monitor.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/application/application.scheduler.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/application/application.scheduler.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/application/application.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/application/application.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/auth/auth.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/auth/auth.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/favorites-cron/favorites-cron.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/favorites-cron/favorites-cron.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/http-log-cron/http-log-cron.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/http-log-cron/http-log-cron.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modules/portal/portal.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal/portal.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/monitor-app.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/monitor-app.module.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/http/http.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/http/http.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/portal-processor/portal-processor.service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -107,7 +98,8 @@
       <workItem from="1771264281867" duration="8625000" />
       <workItem from="1771309296226" duration="446000" />
       <workItem from="1771546773529" duration="978000" />
-      <workItem from="1771776350363" duration="3832000" />
+      <workItem from="1771776350363" duration="5565000" />
+      <workItem from="1771895667444" duration="3492000" />
     </task>
     <servers />
   </component>

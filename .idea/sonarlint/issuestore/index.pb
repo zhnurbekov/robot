@@ -39,3 +39,9 @@ X
 (src/modules/telegram/telegram.service.ts,d/c/dcd8a1d32c34666644e57e10bd8ad82aa2c5a63f
 \
 ,src/modules/ncanode/crypto-socket.service.ts,b/4/b42237f7ea83b9dbf7842c8c288998240e9830ff
+P
+ src/modules/auth/auth.service.ts,5/7/57990f5606a543f99d188093ccc24170abc92610
+D
+src/config/config.js,c/3/c3b21e8453b2cc40e463b2194433df873d54149b
+^
+.src/modules/application/application.service.ts,0/b/0bcf5f8fe69094227fb01fea4b0b9a7bee0b3a8d

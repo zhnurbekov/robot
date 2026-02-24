@@ -458,15 +458,12 @@ export class PortalProcessorService implements IPortalProcessor {
 					const lotIds = this.htmlParserService.extractLotIds(responseGetIdData);
 					if (lotIds.length > 0) {
 						this.logger.log(`Найдено лотов: ${lotIds.length}. Добавляем их в заявку...`);
-						
-						// Отправляем запрос на добавление лотов
+						// postForm ожидает объект: для массива сам формирует selectLots[]=id1&selectLots[]=id2
 						const responseAddLots = await this.portalService.request({
 							url: `/ru/application/ajax_add_lots/${announceId}/${applicationId}`,
 							method: 'POST',
-							isFormData: false, // x-www-form-urlencoded
-							data: {
-								'selectLots[]': lotIds
-							},
+							isFormData: true,
+							data: { 'selectLots[]': lotIds },
 							additionalHeaders: {
 								'X-Requested-With': 'XMLHttpRequest',
 								'Referer': `https://v3bl.goszakup.gov.kz/ru/application/lots/${announceId}/${applicationId}`

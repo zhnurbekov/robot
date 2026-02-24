@@ -110,7 +110,6 @@ export class AnnounceMonitorService {
           const r = await this.portalService.request({
             url,
             method: 'GET',
-            timeout:   1000,
             additionalHeaders: {
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             },

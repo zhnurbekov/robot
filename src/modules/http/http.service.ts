@@ -18,7 +18,7 @@ export class HttpService {
 
     const baseURL = this.configService.get<string>('PORTAL_BASE_URL', 'https://v3bl.goszakup.gov.kz');
     // Преобразуем timeout в число (может быть строкой из .env)
-    const timeoutConfig = this.configService.get<string | number>('HTTP_TIMEOUT', 30000);
+    const timeoutConfig = this.configService.get<string | number>('HTTP_TIMEOUT', 60000);
     const timeout = typeof timeoutConfig === 'string' ? parseInt(timeoutConfig, 10) : timeoutConfig;
     const userAgent = this.configService.get<string>(
       'USER_AGENT',
@@ -193,7 +193,11 @@ export class HttpService {
   async postFormData(url: string, formData: Record<string, any>, config: AxiosRequestConfig = {}) {
     const form = new FormData();
     for (const [key, value] of Object.entries(formData)) {
-      form.append(key, value);
+      if (Array.isArray(value)) {
+        value.forEach((v) => form.append(key, typeof v === 'string' ? v : String(v)));
+      } else {
+        form.append(key, value);
+      }
     }
 
     return this.client.post(url, form, {
