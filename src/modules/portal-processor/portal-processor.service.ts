@@ -1913,7 +1913,7 @@ export class PortalProcessorService implements IPortalProcessor {
 			for (let attempt = 1; attempt <= setDataMaxRetries; attempt++) {
 				try {
 					this.logger.log(`[${taskId}] setData (попытка ${attempt}/${setDataMaxRetries})...`);
-					await this.setData(minPrice);
+					await this.setData(plnSum-1000);
 					setDataError = null;
 					break;
 				} catch (err) {
